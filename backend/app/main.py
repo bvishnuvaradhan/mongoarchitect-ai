@@ -1,7 +1,28 @@
-from fastapi import FastAPI
+from __future__ import annotations
 
-app = FastAPI(title="MongoArchitect AI")
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .config import settings
+from .routers import auth, schema, users, agent
+
+
+app = FastAPI(title="MongoArchitect AI API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origin_list(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(schema.router)
+app.include_router(agent.router)
+
 
 @app.get("/")
-def root():
-    return {"message": "MongoArchitect AI Backend Running 🚀"}
+async def health_check():
+    return {"status": "ok"}
