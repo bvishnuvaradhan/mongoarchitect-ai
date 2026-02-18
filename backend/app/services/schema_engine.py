@@ -897,10 +897,13 @@ DEPTH CALCULATION EXAMPLE:
 - cart.products[].productId = depth 3 (array counts as level!)
 - cart.products[].productId.type = depth 4
 
+🚨 CRITICAL: Your JSON response MUST start with "refinementSummary" as the very first field. This is NON-NEGOTIABLE.
+Without this field, the response is considered INVALID.
+
 RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
 
 {{
-  "refinementSummary": "⚠️ MANDATORY FIRST FIELD - ONE CLEAR SENTENCE summarizing what you achieved vs. what was requested. Include specific numbers (depth/fields/collections before→after). If you failed to meet the goal, state this explicitly with the actual vs. target values.",
+  "refinementSummary": "⚠️ THIS MUST BE THE FIRST LINE OF YOUR JSON - Write ONE clear sentence: 'Successfully [what you did] reducing [metric] from X to Y' OR 'Failed to achieve [goal] because [reason]. Current [metric]=X, target was Y.' Include specific before/after numbers.",
   "description": "Brief description of what was changed",
   "schema": {{"collection_name": {{"field": "Type"}}}},
   "entities": ["list", "of", "collections"],

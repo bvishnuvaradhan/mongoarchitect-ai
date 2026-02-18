@@ -379,13 +379,18 @@ const SchemaDetail = () => {
           )}
 
           {(() => {
+            // Check multiple possible locations for refinement summary
             const summary = currentSchema?.result?.refinementSummary 
+              || currentSchema?.result?.explanations?.refinementSummary
               || currentSchema?.result?.explanations?.Limitations
               || currentSchema?.result?.explanations?.["Refinement Limitations"]
               || currentSchema?.result?.explanations?.Refinement
-              || currentSchema?.result?.explanations?.["Depth Calculation"];
+              || currentSchema?.result?.explanations?.refinement
+              || currentSchema?.result?.explanations?.["Depth Calculation"]
+              || currentSchema?.result?.explanations?.normalization;
             
-            const alternatives = currentSchema?.result?.explanations?.Alternatives;
+            const alternatives = currentSchema?.result?.explanations?.Alternatives
+              || currentSchema?.result?.explanations?.denormalization;
             
             return summary && (
               <div className="mt-4 px-3 py-2 bg-wave/10 border border-wave/30 rounded-lg text-sm">
@@ -394,7 +399,7 @@ const SchemaDetail = () => {
                   <div>{summary}</div>
                   {alternatives && (
                     <div className="pt-2 border-t border-wave/20 text-slate text-xs">
-                      <span className="font-semibold">Suggestion:</span> {alternatives}
+                      <span className="font-semibold">Note:</span> {alternatives}
                     </div>
                   )}
                 </div>
