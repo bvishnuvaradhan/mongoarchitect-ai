@@ -187,6 +187,19 @@ const SchemaDetail = () => {
     return buildDiff(previous, current);
   }, [currentSchema, previousSchema, buildDiff]);
 
+  const warningsDiff = useMemo(() => {
+    if (!previousSchema || !hasPrevious) return null;
+
+    const previousWarnings = previousSchema?.result?.warnings ?? [];
+    const currentWarnings = currentSchema?.result?.warnings ?? [];
+
+    const resolved = previousWarnings.filter(w => !currentWarnings.includes(w));
+    const added = currentWarnings.filter(w => !previousWarnings.includes(w));
+    const persistent = currentWarnings.filter(w => previousWarnings.includes(w));
+
+    return { resolved, added, persistent };
+  }, [currentSchema, previousSchema, hasPrevious]);
+
   /* ================================
      REFINEMENT & EXPORT
   ================================== */
@@ -365,14 +378,29 @@ const SchemaDetail = () => {
             </div>
           )}
 
-          {(currentSchema?.result?.refinementSummary || currentSchema?.result?.explanations?.Limitations) && (
-            <div className="mt-4 px-3 py-2 bg-wave/10 border border-wave/30 rounded-lg text-sm">
-              <div className="text-xs text-wave uppercase tracking-wide mb-2 font-semibold">🔄 Refinement Result</div>
-              <div className="text-ink leading-relaxed">
-                {currentSchema?.result?.refinementSummary || currentSchema?.result?.explanations?.Limitations}
+          {(() => {
+            const summary = currentSchema?.result?.refinementSummary 
+              || currentSchema?.result?.explanations?.Limitations
+              || currentSchema?.result?.explanations?.["Refinement Limitations"]
+              || currentSchema?.result?.explanations?.Refinement
+              || currentSchema?.result?.explanations?.["Depth Calculation"];
+            
+            const alternatives = currentSchema?.result?.explanations?.Alternatives;
+            
+            return summary && (
+              <div className="mt-4 px-3 py-2 bg-wave/10 border border-wave/30 rounded-lg text-sm">
+                <div className="text-xs text-wave uppercase tracking-wide mb-2 font-semibold">🔄 Refinement Result</div>
+                <div className="text-ink leading-relaxed space-y-2">
+                  <div>{summary}</div>
+                  {alternatives && (
+                    <div className="pt-2 border-t border-wave/20 text-slate text-xs">
+                      <span className="font-semibold">Suggestion:</span> {alternatives}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {currentSchema?.refinementText && (
             <div className="mt-4 px-3 py-2 bg-mist border border-wave/20 rounded-lg text-sm">
@@ -410,14 +438,57 @@ const SchemaDetail = () => {
             ⚠ Warnings
           </h3>
 
-          <ul className="mt-3 text-sm space-y-2">
-            {(currentSchema?.result?.warnings ?? []).length === 0 && (
-              <li>No warnings detected.</li>
-            )}
-            {(currentSchema?.result?.warnings ?? []).map((warning) => (
-              <li key={warning}>• {warning}</li>
-            ))}
-          </ul>
+          {warningsDiff && (warningsDiff.resolved.length > 0 || warningsDiff.added.length > 0) ? (
+            <div className="mt-4 space-y-4">
+              {warningsDiff.resolved.length > 0 && (
+                <div className="bg-amber/10 border border-amber/30 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-amber uppercase tracking-wide mb-2">
+                    ✅ Warnings Resolved ({warningsDiff.resolved.length})
+                  </div>
+                  <ul className="text-sm space-y-1">
+                    {warningsDiff.resolved.map((warning, idx) => (
+                      <li key={idx} className="text-ink line-through opacity-60">• {warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {warningsDiff.added.length > 0 && (
+                <div className="bg-red-400/10 border border-red-400/30 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">
+                    ⚠️ New Warnings ({warningsDiff.added.length})
+                  </div>
+                  <ul className="text-sm space-y-1">
+                    {warningsDiff.added.map((warning, idx) => (
+                      <li key={idx} className="text-ink">• {warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {warningsDiff.persistent.length > 0 && (
+                <div className="bg-mist border border-wave/20 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-slate uppercase tracking-wide mb-2">
+                    🔄 Persistent Warnings ({warningsDiff.persistent.length})
+                  </div>
+                  <ul className="text-sm space-y-1">
+                    {warningsDiff.persistent.map((warning, idx) => (
+                      <li key={idx} className="text-ink opacity-75">• {warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <ul className="mt-3 text-sm space-y-2 text-ink">
+              {(currentSchema?.result?.warnings ?? []).length === 0 && (
+                <li>No warnings detected.</li>
+              )}
+              {(currentSchema?.result?.warnings ?? []).map((warning) => (
+                <li key={warning}>• {warning}</li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Diff Section (cleaner format) */}

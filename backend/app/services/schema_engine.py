@@ -900,7 +900,7 @@ DEPTH CALCULATION EXAMPLE:
 RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
 
 {{
-  "refinementSummary": "REQUIRED TOP-LEVEL FIELD: Clear statement like 'Successfully reduced max depth from 5 to 3 by flattening address and splitting cart/orders arrays. Depth 2 requires...' OR 'Partially achieved...' OR 'Could not achieve...'",
+  "refinementSummary": "⚠️ MANDATORY FIRST FIELD - ONE CLEAR SENTENCE summarizing what you achieved vs. what was requested. Include specific numbers (depth/fields/collections before→after). If you failed to meet the goal, state this explicitly with the actual vs. target values.",
   "description": "Brief description of what was changed",
   "schema": {{"collection_name": {{"field": "Type"}}}},
   "entities": ["list", "of", "collections"],
@@ -917,14 +917,26 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
   "warnings": ["Specific warning with context", "If goal not met: Warning about remaining issues"],
   "explanations": {{
     "Key Topic": "Detailed explanation of why this design choice",
-    "refinement": "Explanation of what changed and why",
-    "Limitations": "If applicable: Why the full request couldn't be achieved and what to do next"
+    "refinement": "Explanation of what changed and why"
   }},
   "confidence": {{"collection_name": 85}},
   "accessPattern": "{workload_type}"
 }}
 
-CRITICAL: The refinementSummary field MUST be at the TOP LEVEL of the JSON response, not inside explanations!"""
+EXAMPLE refinementSummary SUCCESS:
+"Successfully reduced max depth from 5 to 2 by flattening address (street/city/state) and converting all enum objects to direct string fields. Schema is now optimized with minimal nesting."
+
+EXAMPLE refinementSummary PARTIAL SUCCESS:
+"Partially achieved: Reduced depth from 5 to 3 by flattening enums, but depth 2 requires moving embedded product arrays to separate cartItems collection. Current depth=3 (due to cart.products[], orders.products[])."
+
+EXAMPLE refinementSummary FAILURE:
+"Failed to achieve max depth 2 (requested) - current depth remains at 4. Simplified all ObjectId refs to String but cartItems array structure inherently adds depth. Achieving depth 2 requires removing all embedded arrays and fully denormalizing data."
+
+CRITICAL: 
+1. The refinementSummary MUST be the FIRST field in your JSON response
+2. Write it as ONE clear sentence explaining the actual outcome
+3. Include specific numbers (depth before/after, fields added/removed)
+4. If you couldn't fully achieve the request, say WHY"""
 
     try:
         response = _groq.chat.completions.create(
