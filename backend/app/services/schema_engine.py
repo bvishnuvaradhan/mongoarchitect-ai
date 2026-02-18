@@ -868,9 +868,32 @@ Workload Type: {workload_type}
 
 CRITICAL ANALYSIS REQUIREMENTS:
 1. **Understand the goal** - What is the user trying to achieve? (e.g., reduce depth, add field, improve performance)
-2. **Evaluate feasibility** - CAN you fully achieve this goal with the current schema?
+2. **Evaluate feasibility** - CAN you fully achieve this goal with SCHEMA CHANGES ONLY?
 3. **Report honestly** - Did you succeed, partially succeed, or fail? Why?
 4. **Provide next steps** - If the goal wasn't fully met, what else needs to be done?
+
+⚠️ SCHEMA vs APPLICATION BOUNDARIES:
+SCHEMA-LEVEL (You CAN do this):
+- Add/remove/rename fields and collections
+- Change field types (String, Number, Date, Array, etc.)
+- Add timestamps (createdAt, updatedAt)
+- Add version fields for optimistic locking
+- Embed/separate collections
+- Change nesting depth by restructuring data
+
+APPLICATION-LEVEL (You CANNOT do this in schema JSON):
+- Implement change streams (requires application code)
+- Implement transactions (requires application code)
+- Add triggers or event handlers (requires MongoDB Atlas or application code)
+- Implement validation rules beyond field types
+- Add indexes with specific performance characteristics (you can suggest, but can't implement)
+- Implement referential integrity constraints (MongoDB doesn't enforce these at DB level)
+
+IF USER REQUESTS APPLICATION-LEVEL FEATURE:
+1. Explain you can't implement it in schema
+2. Add PREPARATORY fields if helpful (updatedAt, version, hash fields)
+3. In refinementSummary: "Cannot implement [feature] in schema (application-level). Added [fields] as preparation, increasing fields from X to Y."
+4. In Alternatives: Provide specific implementation guidance for their application code
 
 TASK: Apply the refinement and return a COMPLETE, UPDATED schema with:
 1. Modified schema structure (add/remove/rename fields/collections as requested)
@@ -888,6 +911,7 @@ IMPORTANT RULES:
 - If the request mentions "whether X or Y or Z", create an enum field: {{"type": "enum(['X', 'Y', 'Z'])"}} NOT nested
 - Use camelCase for field names
 - Be HONEST in refinementSummary - if you couldn't fully achieve the goal, say so and explain why
+- If request is application-level, say so clearly and add preparatory fields only
 - Suggest alternatives in explanations if the exact request isn't feasible
 
 DEPTH CALCULATION EXAMPLE:
@@ -927,12 +951,17 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
   "accessPattern": "{workload_type}"
 }}
 
-EXAMPLE refinementSummary - GOOD:
+EXAMPLE refinementSummary - GOOD (Schema changes):
 "Successfully normalized schema by removing denormalized product and order arrays from collections, reducing total fields from 108 to 91 and depth from 4 to 3."
 "Flattened all nested enum objects (role.type.type → role), reducing max depth from 5 to 3 and simplifying 15 field structures across 9 collections."
 
+EXAMPLE refinementSummary - GOOD (Application-level request):
+"Cannot implement change streams in schema (application-level feature). Added updatedAt timestamps to 6 collections (users, sellers, orders, orderItems, products, payments) as preparatory fields for change tracking, increasing total fields from 91 to 97."
+"Cannot implement transactions at schema level. Added version number fields to orders, orderItems, and products collections for optimistic locking support, increasing total fields from 91 to 94."
+
 EXAMPLE refinementSummary - BAD (too generic):
 "Applied refinement: do normalizing" ❌
+"Applied refinement: implement MongoDB change streams or transactions" ❌
 "Successfully normalized the schema" ❌  
 
 EXAMPLE refinementSummary PARTIAL SUCCESS:
@@ -942,25 +971,32 @@ EXAMPLE refinementSummary FAILURE:
 "Failed to achieve max depth 2 (current: 4). Converted all ObjectId to String but embedded arrays (cartItems, orderItems) inherently require depth 3+. Would need full denormalization to separate collections."
 
 ⚠️ MANDATORY "Alternatives" FIELD WHEN:
-- New warnings added → MUST suggest how to resolve them (e.g., "To prevent data inconsistency between orders and orderItems, implement MongoDB transactions or change streams for automatic synchronization")
+- New warnings added → MUST suggest how to resolve them
 - Refinement partially failed → MUST suggest next step to complete it
+- User requested application-level feature → MUST provide implementation guidance
 - Refinement created trade-offs → MUST suggest how to mitigate them
 - DO NOT just restate the problem - provide an actionable next step that reduces warnings
 
-EXAMPLE Alternatives GOOD:
-"To prevent data inconsistency warnings, implement MongoDB change streams to automatically sync updates between orders and orderItems collections, or use multi-document transactions."
+EXAMPLE Alternatives - GOOD (Schema-level solutions):
+"To prevent data inconsistency warnings, add version number fields (e.g., __v) to orders, orderItems, and products for optimistic locking, or add lastModified timestamp fields for conflict detection."
 "To reduce depth to 2, convert cartItemIds array-of-strings into a separate cartItems collection with userId reference."
 
-EXAMPLE Alternatives BAD (too generic):
+EXAMPLE Alternatives - GOOD (Application-level guidance):
+"To implement change streams for data consistency: (1) Use MongoDB watch() API in your Node.js/Python code on orders and orderItems collections, (2) Set up Atlas triggers for automatic cross-collection updates, or (3) Use multi-document transactions with session.withTransaction() to ensure atomic updates."
+"To maintain referential integrity: Use MongoDB Atlas App Services database triggers or implement cascade delete logic in your application's delete handlers for related documents."
+
+EXAMPLE Alternatives - BAD (too generic):
 "Consider using transactions" ❌
 "May need to optimize" ❌
+"Use change streams to sync data" ❌
 
 🚨 CRITICAL RULES:
-1. refinementSummary MUST be FIRST field with SPECIFIC ACTIONS and NUMBERS (not just "Applied refinement: [request]")
-2. If new warnings added, Alternatives field is MANDATORY with actionable solution
-3. Include before→after metrics (depth, fields, collections)
-4. Be honest about success/partial/failure
-5. Alternatives must help REDUCE warnings, not explain them"""
+1. refinementSummary MUST be FIRST field with SPECIFIC ACTIONS and NUMBERS (never just "Applied refinement: [request]")
+2. If user requests APPLICATION-LEVEL feature: Explain it's not schema-implementable, add preparatory fields, provide Alternatives with implementation code guidance
+3. If new warnings added, Alternatives field is MANDATORY with actionable solution
+4. Include before→after metrics (depth, fields, collections) in every refinementSummary
+5. Be honest about success/partial/failure - never claim success if you just added timestamps
+6. Alternatives must help REDUCE warnings with specific steps, not just explain trade-offs"""
 
     try:
         response = _groq.chat.completions.create(
