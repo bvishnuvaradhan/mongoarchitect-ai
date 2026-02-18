@@ -127,16 +127,16 @@ export default function Chat() {
     <div className="min-h-[calc(100vh-6rem)]">
         {/* Full Page Form */}
         {showForm && (
-          <div className="flex items-center justify-center h-full p-6 bg-gray-50">
+          <div className="flex items-center justify-center h-full p-6">
             <form onSubmit={handleFormSubmit} className="w-full max-w-2xl space-y-6">
               <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Generate MongoDB Schema</h1>
-                <p className="text-gray-600">Describe your application requirements and I'll design the optimal schema</p>
+                <h1 className="text-3xl font-bold text-ink mb-2">Generate MongoDB Schema</h1>
+                <p className="text-slate">Describe your application requirements and I'll design the optimal schema</p>
               </div>
               
               <div className="data-card p-6 space-y-6">
                 <div>
-                  <label htmlFor="requirements" className="block text-sm font-semibold text-gray-700 mb-3">
+                  <label htmlFor="requirements" className="block text-sm font-semibold text-ink mb-3">
                     What's your app about?
                   </label>
                   <textarea
@@ -144,7 +144,7 @@ export default function Chat() {
                     value={formInput}
                     onChange={(e) => setFormInput(e.target.value)}
                     placeholder="e.g., An e-commerce platform with products sold in multiple stores at different prices, or a school management system with students, teachers, classes..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full px-4 py-3 bg-blush border border-wave/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-wave resize-none text-ink placeholder-slate/60"
                     rows="6"
                     disabled={loading}
                     required
@@ -152,14 +152,14 @@ export default function Chat() {
                 </div>
 
                 <div>
-                  <label htmlFor="workload" className="block text-sm font-semibold text-gray-700 mb-3">
+                  <label htmlFor="workload" className="block text-sm font-semibold text-ink mb-3">
                     What's your workload pattern?
                   </label>
                   <select
                     id="workload"
                     value={workloadType}
                     onChange={(e) => setWorkloadType(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-blush border border-wave/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-wave text-ink"
                     disabled={loading}
                   >
                     <option value="balanced">Balanced</option>
@@ -167,7 +167,7 @@ export default function Chat() {
                     <option value="write-heavy">Write-Heavy (lots of writes)</option>
                     <option value="analytical">Analytical (OLAP, reporting)</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-slate mt-2">
                     This helps optimize your schema for your specific access patterns
                   </p>
                 </div>
@@ -175,7 +175,7 @@ export default function Chat() {
                 <button
                   type="submit"
                   disabled={loading || !formInput.trim()}
-                  className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  className="w-full px-6 py-3 bg-wave text-white rounded-lg hover:bg-wave/80 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition"
                 >
                   {loading ? "Generating Schema..." : "Generate Schema"}
                 </button>
@@ -188,11 +188,11 @@ export default function Chat() {
         {!showForm && (
           <div className="flex min-h-[calc(100vh-6rem)] h-[calc(100vh-6rem)] gap-4 p-4">
             {/* Chat Panel */}
-            <div className="flex-1 flex flex-col border border-gray-200 rounded-lg overflow-hidden bg-white">
+            <div className="flex-1 flex flex-col border border-wave/20 rounded-lg overflow-hidden data-card">
               {/* Message History */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 min-h-0">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-blush min-h-0">
               {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-gray-400">
+                <div className="flex items-center justify-center h-full text-slate">
                   <div className="text-center">
                     <p className="text-lg font-semibold">Start Your Schema Design</p>
                     <p className="text-sm mt-2">
@@ -212,8 +212,8 @@ export default function Chat() {
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                           msg.role === "user"
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-200 text-gray-900"
+                            ? "bg-wave text-white"
+                            : "bg-mist border border-wave/20 text-ink"
                         }`}
                       >
                         <p className="text-sm">{msg.content}</p>
@@ -236,13 +236,13 @@ export default function Chat() {
             </div>
 
             {/* Input Area */}
-            <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
+            <div className="flex-shrink-0 p-4 border-t border-wave/20 data-card">
               <form onSubmit={handleSendMessage} className="space-y-2">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Describe your refinements or ask questions..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 bg-blush border border-wave/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-wave resize-none text-ink placeholder-slate/60"
                   rows="3"
                   disabled={loading}
                 />
@@ -250,14 +250,14 @@ export default function Chat() {
                   <button
                     type="submit"
                     disabled={loading || !input.trim()}
-                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-wave text-white rounded-lg hover:bg-wave/80 disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     {loading ? "Thinking..." : "Send"}
                   </button>
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                    className="px-4 py-2 bg-slate/20 text-ink rounded-lg hover:bg-slate/30 transition"
                   >
                     Reset
                   </button>
@@ -268,18 +268,18 @@ export default function Chat() {
 
             {/* Schema Panel - Only show in split view */}
             {schema && (
-            <div className="flex-1 max-w-md border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white h-full">
+            <div className="flex-1 max-w-md border border-wave/20 rounded-lg overflow-hidden flex flex-col data-card h-full">
           {schema ? (
             <>
-              <div className="bg-gray-100 px-4 py-2 border-b flex-shrink-0">
-                <h2 className="font-semibold text-gray-700">MongoDB Schema</h2>
+              <div className="bg-mist px-4 py-2 border-b border-wave/20 flex-shrink-0">
+                <h2 className="font-semibold text-ink">MongoDB Schema</h2>
                 {schemaId && (
-                  <p className="text-xs text-gray-500 mt-1">ID: {schemaId}</p>
+                  <p className="text-xs text-slate mt-1">ID: {schemaId}</p>
                 )}
               </div>
 
             {/* Tabs */}
-            <div className="flex border-b bg-gray-50 flex-shrink-0 overflow-x-auto">
+            <div className="flex border-b border-wave/20 bg-blush flex-shrink-0 overflow-x-auto">
               {[
                 { id: "schema", label: "Schema" },
                 { id: "decisions", label: "Decisions" },
@@ -293,8 +293,8 @@ export default function Chat() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition ${
                     activeTab === tab.id
-                      ? "border-b-2 border-blue-500 text-blue-600 bg-white"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "border-b-2 border-wave text-wave bg-mist"
+                      : "text-slate hover:text-ink"
                   }`}
                 >
                   {tab.label}
@@ -303,11 +303,11 @@ export default function Chat() {
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-white">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
               {activeTab === "schema" && (
                 <div>
-                  <h3 className="text-xs font-bold text-gray-700 mb-2">Collections</h3>
-                  <pre className="text-xs bg-gray-50 p-3 rounded border border-gray-200 overflow-auto max-h-96">
+                  <h3 className="text-xs font-bold text-ink mb-2">Collections</h3>
+                  <pre className="text-xs bg-blush p-3 rounded border border-wave/20 overflow-auto max-h-96 text-ink">
                     {JSON.stringify(schema.schema, null, 2)}
                   </pre>
                 </div>
@@ -315,97 +315,97 @@ export default function Chat() {
 
             {activeTab === "decisions" && (
                 <div>
-                  <h3 className="text-xs font-bold text-gray-700 mb-2">Field Design Decisions (Embed vs Reference)</h3>
+                  <h3 className="text-xs font-bold text-ink mb-2">Field Design Decisions (Embed vs Reference)</h3>
                   {schema.decisions && Object.keys(schema.decisions).length > 0 ? (
                     <div className="space-y-2">
                       {Object.entries(schema.decisions)
                         .filter(([key]) => key !== "relationships")
                         .map(([collection, decision]) => (
-                          <div key={collection} className="bg-green-50 p-2 rounded border border-green-200">
-                            <p className="text-xs font-semibold text-green-900">{collection}</p>
-                            <p className="text-xs text-green-800 mt-1">{decision}</p>
+                          <div key={collection} className="bg-wave/10 p-2 rounded border border-wave/30">
+                            <p className="text-xs font-semibold text-wave">{collection}</p>
+                            <p className="text-xs text-ink mt-1">{decision}</p>
                           </div>
                         ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-600">No decisions yet</p>
+                    <p className="text-xs text-slate">No decisions yet</p>
                   )}
                 </div>
               )}
 
               {activeTab === "relationships" && (
                 <div>
-                  <h3 className="text-xs font-bold text-gray-700 mb-2">Collection Relationships</h3>
+                  <h3 className="text-xs font-bold text-ink mb-2">Collection Relationships</h3>
                   {schema.relationships && Object.keys(schema.relationships).length > 0 ? (
                     <div className="space-y-2">
                       {Object.entries(schema.relationships).map(([rel, pattern]) => (
-                        <div key={rel} className="bg-purple-50 p-2 rounded border border-purple-200">
-                          <p className="text-xs font-semibold text-purple-900">{rel}</p>
-                          <p className="text-xs text-purple-800 mt-1">{pattern}</p>
+                        <div key={rel} className="bg-amber/10 p-2 rounded border border-amber/30">
+                          <p className="text-xs font-semibold text-amber">{rel}</p>
+                          <p className="text-xs text-ink mt-1">{pattern}</p>
                         </div>
                       ))}
                     </div>
                   ) : schema.decisions && schema.decisions.relationships && Object.keys(schema.decisions.relationships).length > 0 ? (
                     <div className="space-y-2">
                       {Object.entries(schema.decisions.relationships).map(([rel, pattern]) => (
-                        <div key={rel} className="bg-purple-50 p-2 rounded border border-purple-200">
-                          <p className="text-xs font-semibold text-purple-900">{rel}</p>
-                          <p className="text-xs text-purple-800 mt-1">{pattern}</p>
+                        <div key={rel} className="bg-amber/10 p-2 rounded border border-amber/30">
+                          <p className="text-xs font-semibold text-amber">{rel}</p>
+                          <p className="text-xs text-ink mt-1">{pattern}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-600">No relationships found</p>
+                    <p className="text-xs text-slate">No relationships found</p>
                   )}
                 </div>
               )}
 
               {activeTab === "explanations" && (
                 <div>
-                  <h3 className="text-xs font-bold text-gray-700 mb-2">Design Explanations</h3>
+                  <h3 className="text-xs font-bold text-ink mb-2">Design Explanations</h3>
                   {schema.explanations && Object.keys(schema.explanations).length > 0 ? (
                     <div className="space-y-2">
                       {Object.entries(schema.explanations).map(([key, explanation]) => (
-                        <div key={key} className="bg-blue-50 p-2 rounded border border-blue-200">
-                          <p className="text-xs font-semibold text-blue-900">{key}</p>
-                          <p className="text-xs text-blue-800 mt-1">{explanation}</p>
+                        <div key={key} className="bg-wave/10 p-2 rounded border border-wave/30">
+                          <p className="text-xs font-semibold text-wave">{key}</p>
+                          <p className="text-xs text-ink mt-1">{explanation}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-600">No explanations yet</p>
+                    <p className="text-xs text-slate">No explanations yet</p>
                   )}
                 </div>
               )}
 
               {activeTab === "warnings" && (
                 <div>
-                  <h3 className="text-xs font-bold text-gray-700 mb-2">Warnings & Concerns</h3>
+                  <h3 className="text-xs font-bold text-ink mb-2">Warnings & Concerns</h3>
                   {schema.warnings && schema.warnings.length > 0 ? (
                     <div className="space-y-2">
                       {schema.warnings.map((warning, idx) => (
-                        <div key={idx} className="bg-yellow-50 p-2 rounded border border-yellow-200">
-                          <p className="text-xs text-yellow-900">⚠️ {warning}</p>
+                        <div key={idx} className="bg-amber/10 p-2 rounded border border-amber/30">
+                          <p className="text-xs text-amber">⚠️ {warning}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-600">No warnings detected</p>
+                    <p className="text-xs text-slate">No warnings detected</p>
                   )}
                 </div>
               )}
 
               {activeTab === "indexes" && (
                 <div>
-                  <h3 className="text-xs font-bold text-gray-700 mb-2">Recommended Indexes</h3>
+                  <h3 className="text-xs font-bold text-ink mb-2">Recommended Indexes</h3>
                   {schema.indexes && schema.indexes.length > 0 ? (
                     <div className="space-y-2">
                       {schema.indexes.map((index, idx) => (
-                        <div key={idx} className="bg-indigo-50 p-2 rounded border border-indigo-200">
-                          <p className="text-xs font-semibold text-indigo-900">
+                        <div key={idx} className="bg-wave/10 p-2 rounded border border-wave/30">
+                          <p className="text-xs font-semibold text-wave">
                             {index.collection}
                           </p>
-                          <p className="text-xs text-indigo-800 mt-1">
+                          <p className="text-xs text-ink mt-1">
                             {Array.isArray(index.fields) 
                               ? `Fields: ${index.fields.join(", ")}`
                               : `Field: ${index.field || index.fields}`
@@ -415,14 +415,14 @@ export default function Chat() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-600">No indexes recommended</p>
+                    <p className="text-xs text-slate">No indexes recommended</p>
                   )}
                 </div>
               )}
             </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full bg-gray-50 text-gray-400">
+            <div className="flex items-center justify-center h-full text-slate">
               <div className="text-center">
                 <p className="text-sm font-semibold">Schema will appear here</p>
                 <p className="text-xs mt-1">Generate a schema to see:</p>

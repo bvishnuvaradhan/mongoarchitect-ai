@@ -8,12 +8,12 @@ module.exports = {
         body: ["Space Grotesk", "sans-serif"]
       },
       colors: {
-        ink: "#0b1d1f",
-        slate: "#1f2937",
-        mist: "#e7ecef",
-        wave: "#0f766e",
-        amber: "#d97706",
-        blush: "#f2d0a4"
+        ink: "#E3FCF7",      // Light text on dark bg
+        slate: "#A0AEC0",    // Muted gray text
+        mist: "#003B4A",     // Dark card background
+        wave: "#13AA52",     // MongoDB leaf green
+        amber: "#00ED64",    // Bright green accent
+        blush: "#001E2B"     // Darkest navy
       },
       boxShadow: {
         soft: "0 10px 30px rgba(15, 23, 42, 0.12)"

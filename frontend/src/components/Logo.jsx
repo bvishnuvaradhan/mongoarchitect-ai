@@ -9,7 +9,7 @@ const Logo = ({ variant = "horizontal" }) => {
       <img
         src={imageSrc}
         alt="MongoArchitect AI"
-        className={variant === "square" ? "h-12 w-12" : "h-12"}
+        className={variant === "square" ? "h-16 w-16" : "h-16"}
         onError={() => setShowImage(false)}
       />
     );
@@ -17,7 +17,7 @@ const Logo = ({ variant = "horizontal" }) => {
 
   return (
     <div className="flex items-center gap-3">
-      <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-wave to-amber text-white font-semibold flex items-center justify-center shadow-soft">
+      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-wave to-amber text-white font-semibold flex items-center justify-center shadow-soft">
         MA
       </div>
       {variant === "horizontal" && (

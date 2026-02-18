@@ -866,25 +866,41 @@ USER REFINEMENT REQUEST: {refinement_text}
 
 Workload Type: {workload_type}
 
+CRITICAL ANALYSIS REQUIREMENTS:
+1. **Understand the goal** - What is the user trying to achieve? (e.g., reduce depth, add field, improve performance)
+2. **Evaluate feasibility** - CAN you fully achieve this goal with the current schema?
+3. **Report honestly** - Did you succeed, partially succeed, or fail? Why?
+4. **Provide next steps** - If the goal wasn't fully met, what else needs to be done?
+
 TASK: Apply the refinement and return a COMPLETE, UPDATED schema with:
 1. Modified schema structure (add/remove/rename fields/collections as requested)
-2. Updated decisions explaining why each collection is separate/embedded
-3. Updated relationships
-4. Updated indexes
-5. Updated warnings
-6. Updated explanations (specific to the changes made)
-7. Updated confidence scores
+2. **refinementSummary** - Clear statement of what was achieved and what wasn't
+3. Updated decisions explaining why each collection is separate/embedded
+4. Updated relationships
+5. Updated indexes
+6. Updated warnings (include if goal wasn't fully met)
+7. Updated explanations (specific to the changes made AND why certain changes weren't possible)
+8. Updated confidence scores
 
 IMPORTANT RULES:
+- If user requests "reduce max depth to X", count nesting levels carefully (arrays of objects add depth!)
 - If adding a field to a nested object (like "address"), add it INSIDE that object, not at root level
-- If the request mentions "whether X or Y or Z", create an enum field: {{"type": "enum(['X', 'Y', 'Z'])"}}
+- If the request mentions "whether X or Y or Z", create an enum field: {{"type": "enum(['X', 'Y', 'Z'])"}} NOT nested
 - Use camelCase for field names
-- Be specific in explanations - explain WHY the change was made and its impact
-- Maintain existing collections unless explicitly asked to remove them
+- Be HONEST in refinementSummary - if you couldn't fully achieve the goal, say so and explain why
+- Suggest alternatives in explanations if the exact request isn't feasible
+
+DEPTH CALCULATION EXAMPLE:
+- users.name = depth 1
+- users.address.city = depth 2
+- users.address.type.value = depth 3
+- cart.products[].productId = depth 3 (array counts as level!)
+- cart.products[].productId.type = depth 4
 
 RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
 
 {{
+  "refinementSummary": "REQUIRED TOP-LEVEL FIELD: Clear statement like 'Successfully reduced max depth from 5 to 3 by flattening address and splitting cart/orders arrays. Depth 2 requires...' OR 'Partially achieved...' OR 'Could not achieve...'",
   "description": "Brief description of what was changed",
   "schema": {{"collection_name": {{"field": "Type"}}}},
   "entities": ["list", "of", "collections"],
@@ -898,20 +914,23 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
   "indexes": [
     {{"collection": "name", "fields": ["field"], "unique": true/false, "reason": "Specific reason"}}
   ],
-  "warnings": ["Specific warning with context"],
+  "warnings": ["Specific warning with context", "If goal not met: Warning about remaining issues"],
   "explanations": {{
     "Key Topic": "Detailed explanation of why this design choice",
-    "refinement": "Explanation of what changed and why"
+    "refinement": "Explanation of what changed and why",
+    "Limitations": "If applicable: Why the full request couldn't be achieved and what to do next"
   }},
   "confidence": {{"collection_name": 85}},
   "accessPattern": "{workload_type}"
-}}"""
+}}
+
+CRITICAL: The refinementSummary field MUST be at the TOP LEVEL of the JSON response, not inside explanations!"""
 
     try:
         response = _groq.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=2500,
+            max_tokens=3000,
             temperature=0.2
         )
         

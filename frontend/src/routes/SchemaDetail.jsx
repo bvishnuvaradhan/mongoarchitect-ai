@@ -248,26 +248,26 @@ const SchemaDetail = () => {
       {/* ============================
           FIXED TOP BAR
       ============================ */}
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-200">
+      <div className="sticky top-0 z-10 bg-mist/90 backdrop-blur border-b border-wave/20">
         <div className="flex items-center justify-between gap-4 px-6 py-3">
           <Link to="/history" className="text-wave font-semibold text-sm">
             ← Back
           </Link>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-slate">
               V{currentIndex + 1} / {versionHistory.length}
             </span>
             <button
               disabled={!hasPrevious}
               onClick={() => setCurrentIndex((index) => index - 1)}
-              className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-sm"
+              className="px-3 py-1 rounded-lg bg-blush hover:bg-blush/80 disabled:opacity-40 text-sm text-ink border border-wave/20"
             >
               ←
             </button>
             <button
               disabled={!hasNext}
               onClick={() => setCurrentIndex((index) => index + 1)}
-              className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-sm"
+              className="px-3 py-1 rounded-lg bg-blush hover:bg-blush/80 disabled:opacity-40 text-sm text-ink border border-wave/20"
             >
               →
             </button>
@@ -281,21 +281,21 @@ const SchemaDetail = () => {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Original Requirement */}
         {versionHistory.length > 0 && versionHistory[0]?.inputText && (
-          <div className="data-card p-5 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200">
-            <h3 className="text-purple-700 font-semibold text-sm uppercase tracking-wide mb-3">
+          <div className="data-card p-5 bg-gradient-to-br from-wave/10 to-amber/10 border border-wave/30">
+            <h3 className="text-wave font-semibold text-sm uppercase tracking-wide mb-3">
               📝 Original Requirement
             </h3>
-            <p className="text-slate-700 text-sm leading-relaxed mb-3">
+            <p className="text-ink text-sm leading-relaxed mb-3">
               {versionHistory[0].inputText.split('\n').filter(line => !line.toLowerCase().startsWith('refinement:')).join(' ').trim()}
             </p>
             {versionHistory.length > 1 && (
-              <div className="mt-3 pt-3 border-t border-purple-200">
-                <div className="text-xs text-purple-600 uppercase tracking-wide mb-2">Refinement History</div>
+              <div className="mt-3 pt-3 border-t border-wave/20">
+                <div className="text-xs text-wave uppercase tracking-wide mb-2">Refinement History</div>
                 <div className="space-y-1">
                   {versionHistory.slice(1, currentIndex + 1).map((version, idx) => (
                     version.refinementText && (
-                      <div key={idx} className="text-xs text-slate-600">
-                        <span className="font-medium text-purple-600">v{idx + 2}:</span> {version.refinementText}
+                      <div key={idx} className="text-xs text-slate">
+                        <span className="font-medium text-wave">v{idx + 2}:</span> {version.refinementText}
                       </div>
                     )
                   ))}
@@ -306,7 +306,7 @@ const SchemaDetail = () => {
         )}
 
         {/* Schema Metrics Panel */}
-        <div className="data-card p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+        <div className="data-card p-5 bg-gradient-to-br from-wave/10 to-amber/10 border border-wave/30">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">
               📊 Schema Metrics
@@ -320,55 +320,64 @@ const SchemaDetail = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="bg-white/60 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Collections</div>
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Collections</div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-wave">{currentMetrics.collectionCount}</span>
                 {previousMetrics && currentMetrics.collectionCount !== previousMetrics.collectionCount && (
-                  <span className={`text-xs ${currentMetrics.collectionCount > previousMetrics.collectionCount ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`text-xs ${currentMetrics.collectionCount > previousMetrics.collectionCount ? 'text-amber' : 'text-red-400'}`}>
                     {currentMetrics.collectionCount > previousMetrics.collectionCount ? '+' : ''}{currentMetrics.collectionCount - previousMetrics.collectionCount}
                   </span>
                 )}
               </div>
             </div>
-            <div className="bg-white/60 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Fields</div>
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Total Fields</div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-wave">{currentMetrics.fieldCount}</span>
                 {previousMetrics && currentMetrics.fieldCount !== previousMetrics.fieldCount && (
-                  <span className={`text-xs ${currentMetrics.fieldCount > previousMetrics.fieldCount ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`text-xs ${currentMetrics.fieldCount > previousMetrics.fieldCount ? 'text-amber' : 'text-red-400'}`}>
                     {currentMetrics.fieldCount > previousMetrics.fieldCount ? '+' : ''}{currentMetrics.fieldCount - previousMetrics.fieldCount}
                   </span>
                 )}
               </div>
             </div>
-            <div className="bg-white/60 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Max Depth</div>
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Max Depth</div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-wave">{currentMetrics.depth}</span>
                 {previousMetrics && currentMetrics.depth !== previousMetrics.depth && (
-                  <span className={`text-xs ${currentMetrics.depth > previousMetrics.depth ? 'text-amber-600' : 'text-green-600'}`}>
+                  <span className={`text-xs ${currentMetrics.depth > previousMetrics.depth ? 'text-amber' : 'text-amber'}`}>
                     {currentMetrics.depth > previousMetrics.depth ? '+' : ''}{currentMetrics.depth - previousMetrics.depth}
                   </span>
                 )}
               </div>
             </div>
-            <div className="bg-white/60 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Version</div>
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Version</div>
               <div className="text-2xl font-bold text-wave">{currentIndex + 1}</div>
             </div>
           </div>
 
           {structuralWarning && (
-            <div className="mt-4 px-3 py-2 bg-amber-100 border border-amber-300 rounded-lg text-amber-800 text-sm">
+            <div className="mt-4 px-3 py-2 bg-amber/10 border border-amber/30 rounded-lg text-amber text-sm">
               {structuralWarning}
             </div>
           )}
 
+          {(currentSchema?.result?.refinementSummary || currentSchema?.result?.explanations?.Limitations) && (
+            <div className="mt-4 px-3 py-2 bg-wave/10 border border-wave/30 rounded-lg text-sm">
+              <div className="text-xs text-wave uppercase tracking-wide mb-2 font-semibold">🔄 Refinement Result</div>
+              <div className="text-ink leading-relaxed">
+                {currentSchema?.result?.refinementSummary || currentSchema?.result?.explanations?.Limitations}
+              </div>
+            </div>
+          )}
+
           {currentSchema?.refinementText && (
-            <div className="mt-4 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Last Refinement</div>
-              <div className="text-slate-700">{currentSchema.refinementText}</div>
+            <div className="mt-4 px-3 py-2 bg-mist border border-wave/20 rounded-lg text-sm">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Requested Change</div>
+              <div className="text-ink italic">{currentSchema.refinementText}</div>
             </div>
           )}
         </div>
@@ -423,10 +432,10 @@ const SchemaDetail = () => {
 
             <div className="mt-4 text-xs bg-mist/60 p-4 rounded-xl max-h-80 overflow-auto font-mono">
               {diffLines.length === 0 ? (
-                <div className="text-slate-500">
+                <div className="text-slate">
                   No structural changes detected between versions.
                   {currentSchema?.refinementText && (
-                    <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
+                    <div className="mt-3 px-3 py-2 bg-amber/10 border border-amber/30 rounded text-amber">
                       <strong>Note:</strong> A refinement was requested ("{currentSchema.refinementText}") 
                       but no schema structure changes were applied. The backend may need to process this refinement differently.
                     </div>
@@ -439,10 +448,10 @@ const SchemaDetail = () => {
                       key={`${line.type}-${index}`}
                       className={
                         line.type === "added"
-                          ? "text-green-600 font-semibold"
+                          ? "text-amber font-semibold"
                           : line.type === "removed"
-                          ? "text-red-600"
-                          : "text-amber-600"
+                          ? "text-red-400"
+                          : "text-wave"
                       }
                     >
                       {line.text}
@@ -458,13 +467,13 @@ const SchemaDetail = () => {
       {/* ============================
           FIXED REFINE SECTION
       ============================ */}
-      <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 backdrop-blur p-4 space-y-3 shadow-lg">
+      <div className="sticky bottom-0 z-10 border-t border-wave/20 bg-mist/95 backdrop-blur p-4 space-y-3 shadow-lg">
         <h3 className="text-wave font-semibold text-xs uppercase tracking-wide">
           🔄 Refine Schema
         </h3>
 
         <textarea
-          className="w-full min-h-[56px] rounded-xl border px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-wave/50"
+          className="w-full min-h-[56px] rounded-xl border border-wave/30 bg-blush px-4 py-2 text-sm text-ink placeholder-slate/60 focus:outline-none focus:ring-2 focus:ring-wave/50"
           placeholder="Describe the changes you want..."
           value={refinementText}
           onChange={(event) => setRefinementText(event.target.value)}
