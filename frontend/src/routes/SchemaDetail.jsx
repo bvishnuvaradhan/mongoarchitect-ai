@@ -399,7 +399,7 @@ const SchemaDetail = () => {
                   <div>{summary}</div>
                   {alternatives && (
                     <div className="pt-2 border-t border-wave/20 text-slate text-xs">
-                      <span className="font-semibold">Note:</span> {alternatives}
+                      <span className="font-semibold">Suggestion:</span> {alternatives}
                     </div>
                   )}
                 </div>
