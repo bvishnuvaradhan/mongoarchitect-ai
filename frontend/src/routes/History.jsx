@@ -9,6 +9,7 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ show: false, type: null, id: null });
 
   useEffect(() => {
     const load = async () => {
@@ -27,36 +28,40 @@ const History = () => {
   const handleDelete = async (e, id) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!window.confirm("Are you sure you want to delete this schema?")) {
-      return;
-    }
-
-    setDeleting(id);
-    try {
-      await deleteSchema(id);
-      setItems((prev) => prev.filter((item) => item._id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete schema");
-    } finally {
-      setDeleting(null);
-    }
+    setConfirmModal({ show: true, type: "single", id });
   };
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm("Are you sure you want to delete ALL schemas? This cannot be undone.")) {
-      return;
-    }
+  const handleDeleteAll = () => {
+    setConfirmModal({ show: true, type: "all", id: null });
+  };
 
-    setDeletingAll(true);
-    try {
-      await deleteAllSchemas();
-      setItems([]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete all schemas");
-    } finally {
-      setDeletingAll(false);
+  const confirmDelete = async () => {
+    if (confirmModal.type === "single") {
+      setDeleting(confirmModal.id);
+      try {
+        await deleteSchema(confirmModal.id);
+        setItems((prev) => prev.filter((item) => item._id !== confirmModal.id));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete schema");
+      } finally {
+        setDeleting(null);
+      }
+    } else if (confirmModal.type === "all") {
+      setDeletingAll(true);
+      try {
+        await deleteAllSchemas();
+        setItems([]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete all schemas");
+      } finally {
+        setDeletingAll(false);
+      }
     }
+    setConfirmModal({ show: false, type: null, id: null });
+  };
+
+  const cancelDelete = () => {
+    setConfirmModal({ show: false, type: null, id: null });
   };
 
   return (
@@ -116,6 +121,45 @@ const History = () => {
               </p>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-ink mb-2">
+                  {confirmModal.type === "all" ? "Delete All Schemas?" : "Delete Schema?"}
+                </h3>
+                <p className="text-slate text-sm">
+                  {confirmModal.type === "all"
+                    ? "Are you sure you want to delete ALL schemas? This action cannot be undone and will remove all version history."
+                    : "Are you sure you want to delete this schema? This action cannot be undone."}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition shadow-lg shadow-red-500/30"
+              >
+                {confirmModal.type === "all" ? "Delete All" : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

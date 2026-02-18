@@ -719,7 +719,7 @@ Example response format:
     
     try:
         response = _groq.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000
         )
@@ -909,7 +909,7 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
 
     try:
         response = _groq.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2500,
             temperature=0.2

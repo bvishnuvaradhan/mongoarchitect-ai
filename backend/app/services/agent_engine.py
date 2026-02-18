@@ -19,7 +19,7 @@ from .schema_engine import generate_schema, apply_refinement
 # Configuration
 # ============================================================
 
-MODEL_NAME = "llama-3.1-8b-instant"  # Free tier; swap for llama-3.1-70b-versatile if available
+MODEL_NAME = "llama-3.3-70b-versatile"  # Latest 70B model - best quality on free tier
 TEMPERATURE = 0.2  # Lower = more deterministic
 MAX_TOKENS = 3500
 MAX_HISTORY = 6  # Trim history to prevent bloat
