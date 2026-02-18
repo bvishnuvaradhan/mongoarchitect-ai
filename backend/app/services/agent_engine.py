@@ -1,5 +1,6 @@
 """
-Agentic AI for schema design using Claude with multi-turn reasoning and tool usage.
+Enterprise-Grade Agentic MongoDB Schema Designer
+Production-ready architecture with structured validation and retry logic
 """
 
 from __future__ import annotations
@@ -7,153 +8,290 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 import json
-from anthropic import Anthropic
+import re
+from groq import Groq
+from pydantic import BaseModel, ValidationError
 
+from ..config import settings
 from .schema_engine import generate_schema, apply_refinement
 
-# Initialize Anthropic client (API key from environment)
-client = Anthropic()
+# ============================================================
+# Configuration
+# ============================================================
 
-# System prompt for the schema design agent
-SYSTEM_PROMPT = """You are an expert MongoDB schema architect AI assistant. Your role is to help users design optimal MongoDB schemas through multi-turn conversation.
+MODEL_NAME = "llama-3.1-8b-instant"  # Free tier; swap for llama-3.1-70b-versatile if available
+TEMPERATURE = 0.2  # Lower = more deterministic
+MAX_TOKENS = 3500
+MAX_HISTORY = 6  # Trim history to prevent bloat
+MAX_RETRIES = 2
 
-You have access to two main tools:
-1. GENERATE_SCHEMA: Create a new schema from scratch based on natural language description
-2. REFINE_SCHEMA: Modify an existing schema based on user feedback
 
-Your approach should be:
-- First, ask clarifying questions if the user's request is ambiguous (e.g., workload type, scale, access patterns)
-- Once you have enough information, generate an initial schema
-- Iterate based on user feedback using refinement operations
-- Provide clear explanations for design decisions (embed vs reference, indexing strategy, etc.)
-- Consider workload patterns: read-heavy, write-heavy, mixed, analytical
+# ============================================================
+# Structured Output Model (STRICT)
+# ============================================================
 
-When generating or refining schemas, you should:
-- Identify entities and their relationships
-- Decide on embed vs reference strategies based on workload type
-- Suggest appropriate indexes
-- Flag potential issues or design concerns
+class SchemaAgentOutput(BaseModel):
+    """Validated response schema from agent."""
+    reasoning: str
+    action: str
+    user_message: str
+    decisions: Dict[str, str]
+    relationships: Dict[str, str]
+    schema: Dict[str, Any]
+    explanations: Dict[str, str]
+    warnings: List[str]
+    indexes: List[Dict[str, Any]]
 
-Format your response as JSON with these fields:
+
+# ============================================================
+# System Prompt
+# ============================================================
+
+SYSTEM_PROMPT = """You are an expert MongoDB schema designer.
+
+RESPOND WITH ONLY VALID JSON. NO MARKDOWN. NO EXTRA TEXT.
+
+Output format:
 {
-  "reasoning": "Your thinking process",
-  "action": "GENERATE_SCHEMA | REFINE_SCHEMA | ASK_QUESTIONS | NONE",
-  "user_message": "Response to the user (always include this)",
-  "tool_input": {
-    "text": "For GENERATE_SCHEMA: the schema requirements",
-    "workload_type": "read-heavy | write-heavy | mixed | analytical",
-    "schema_id": "For REFINE_SCHEMA: the MongoDB ID of the schema to refine",
-    "refinement": "For REFINE_SCHEMA: the refinement instruction in natural language"
+  "reasoning": "Why this design is optimal",
+  "action": "GENERATE_SCHEMA",
+  "user_message": "Friendly summary",
+  "decisions": {
+    "collectionName": "Field design (embed vs reference)"
   },
-  "schema": null  // Will be populated by the backend with actual schema if action requires it
+  "relationships": {
+    "Collection1 to Collection2": "SEPARATE/JUNCTION/EMBEDDED pattern"
+  },
+  "schema": {full collections},
+  "explanations": {detailed rationales},
+  "warnings": [concerns],
+  "indexes": [recommendations]
 }
 
-Always be helpful, provide reasoning, and ask clarifying questions when needed."""
+STRICT REQUIREMENTS:
+1. ONLY valid JSON output
+2. action = "GENERATE_SCHEMA"
+3. 4-6 collections minimum
+4. 3-5 indexes minimum
+5. domain-specific explanations (no generic text)
+6. Detect many-to-many → JUNCTION collections
+7. Respect 16MB document limit
+"""
 
+
+
+
+# ============================================================
+# Agent Implementation
+# ============================================================
 
 class SchemaDesignAgent:
-    """Multi-turn agent for MongoDB schema design with Claude backend."""
-    
+    """Multi-turn agent with structured output validation and retry logic."""
+
     def __init__(self, user_id: str):
-        """
-        Initialize agent for a specific user.
-        
-        Args:
-            user_id: Unique identifier for the user
-        """
         self.user_id = user_id
-        self.conversation_history: List[Dict[str, str]] = []
-    
+        self.client = Groq(api_key=settings.groq_api_key)
+        self.history: List[Dict[str, str]] = []
+
+    # --------------------------------------------------------
+    # History Management
+    # --------------------------------------------------------
+
+    def _trim_history(self):
+        """Keep history to MAX_HISTORY entries to prevent bloat."""
+        if len(self.history) > MAX_HISTORY:
+            self.history = self.history[-MAX_HISTORY:]
+
     def add_message(self, role: str, content: str) -> None:
-        """Add a message to conversation history."""
-        self.conversation_history.append({"role": role, "content": content})
-    
+        """Add message to history and trim if needed."""
+        self.history.append({"role": role, "content": content})
+        self._trim_history()
+
     def get_conversation_history(self) -> List[Dict[str, str]]:
         """Get full conversation history."""
-        return self.conversation_history.copy()
-    
-    def chat(self, user_message: str, current_schema: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self.history.copy()
+
+    # --------------------------------------------------------
+    # Core Chat Logic with Retry
+    # --------------------------------------------------------
+
+    def chat(
+        self,
+        user_message: str,
+        current_schema: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """
-        Process user message and generate agent response with optional schema update.
+        Process user message with retry logic and structured validation.
         
         Args:
             user_message: User's input text
-            current_schema: Optional current schema if refining an existing one
-        
+            current_schema: Optional current schema for refinement
+            
         Returns:
-            Dict with agent response, reasoning, and optional schema
+            Validated schema response
         """
-        # Add user message to history
         self.add_message("user", user_message)
-        
-        # Build context if refining existing schema
-        system_with_context = SYSTEM_PROMPT
-        if current_schema:
-            schema_context = json.dumps(current_schema, indent=2)
-            system_with_context += f"\n\nCURRENT SCHEMA:\n{schema_context}\n\nWhen refining, analyze how to improve this schema based on user feedback."
-        
-        # Get Claude's response
-        try:
-            response = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
-                system=system_with_context,
-                messages=self.conversation_history
-            )
-            
-            assistant_message = response.content[0].text
-            self.add_message("assistant", assistant_message)
-            
-            # Parse Claude's response (should be JSON)
+
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(self.history)
+
+        # Retry loop with automatic recovery
+        for attempt in range(MAX_RETRIES + 1):
             try:
-                parsed_response = json.loads(assistant_message)
+                response = self.client.chat.completions.create(
+                    model=MODEL_NAME,
+                    temperature=TEMPERATURE,
+                    max_tokens=MAX_TOKENS,
+                    messages=messages,
+                )
+
+                assistant_text = response.choices[0].message.content.strip()
+                self.add_message("assistant", assistant_text)
+
+                # Extract JSON from various formats
+                parsed = self._safe_json_extract(assistant_text)
+
+                if not parsed:
+                    # Guide LLM to fix JSON on next attempt
+                    if attempt < MAX_RETRIES:
+                        messages.append({
+                            "role": "system",
+                            "content": "ERROR: Your response was not valid JSON. Output only valid JSON without markdown."
+                        })
+                    continue
+
+                # Validate with Pydantic
+                try:
+                    structured = SchemaAgentOutput(**parsed)
+                except ValidationError as e:
+                    if attempt < MAX_RETRIES:
+                        messages.append({
+                            "role": "system",
+                            "content": f"VALIDATION ERROR: {str(e)[:200]}. Fix and regenerate."
+                        })
+                    continue
+
+                # Hard validation rules - check before schema generation
+                if structured.action != "GENERATE_SCHEMA":
+                    if attempt < MAX_RETRIES:
+                        messages.append({
+                            "role": "system",
+                            "content": 'ERROR: action must be "GENERATE_SCHEMA". Never ask questions. Generate immediately.'
+                        })
+                    continue
+
+                # Verify all required fields are present
+                if not all([
+                    structured.reasoning,
+                    structured.user_message,
+                    structured.decisions,
+                    structured.relationships,
+                    structured.explanations,
+                    structured.warnings,
+                    structured.indexes,
+                ]):
+                    if attempt < MAX_RETRIES:
+                        messages.append({
+                            "role": "system",
+                            "content": "ERROR: Missing required fields. Ensure all fields (reasoning, user_message, decisions, relationships, schema, explanations, warnings, indexes) are populated."
+                        })
+                    continue
+
+                # Verify indexes have proper structure
+                if not structured.indexes or len(structured.indexes) < 2:
+                    if attempt < MAX_RETRIES:
+                        messages.append({
+                            "role": "system",
+                            "content": "ERROR: Must include 3+ proper index definitions with 'collection', 'fields' or 'field', and 'reason'."
+                        })
+                    continue
+
+                # Success! Generate final schema
+                if current_schema:
+                    final_schema = apply_refinement(
+                        base_result=current_schema,
+                        refinement_text=user_message,
+                        workload_type="balanced",
+                    )
+                else:
+                    final_schema = generate_schema(
+                        input_text=user_message,
+                        workload_type="balanced",
+                    )
+
+                structured.schema = final_schema
+                return structured.model_dump()
+
+            except Exception as e:
+                if attempt == MAX_RETRIES:
+                    return {
+                        "reasoning": "Error occurred",
+                        "action": "NONE",
+                        "user_message": f"Error: {str(e)}",
+                        "decisions": {},
+                        "relationships": {},
+                        "schema": None,
+                        "explanations": {},
+                        "warnings": [f"Error: {str(e)}"],
+                        "indexes": []
+                    }
+                continue
+
+        # All retries exhausted
+        return {
+            "reasoning": "Failed to generate valid schema",
+            "action": "NONE",
+            "user_message": "Could not generate valid schema after multiple attempts",
+            "decisions": {},
+            "relationships": {},
+            "schema": None,
+            "explanations": {},
+            "warnings": ["Failed to generate schema after retries"],
+            "indexes": []
+        }
+
+    # --------------------------------------------------------
+    # JSON Extraction
+    # --------------------------------------------------------
+
+    def _safe_json_extract(self, text: str) -> Optional[Dict[str, Any]]:
+        """
+        Safely extract JSON from various response formats.
+        
+        Attempts:
+        1. Direct JSON parse
+        2. Regex find JSON object
+        3. Return None if all fail
+        """
+        # Try direct parse first
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Try regex extraction
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
             except json.JSONDecodeError:
-                # If not valid JSON, wrap in a response structure
-                parsed_response = {
-                    "reasoning": "Parsed response as natural language",
-                    "action": "NONE",
-                    "user_message": assistant_message,
-                    "schema": None
-                }
-            
-            # Execute action if specified
-            if parsed_response.get("action") == "GENERATE_SCHEMA":
-                tool_input = parsed_response.get("tool_input", {})
-                schema_result = generate_schema(
-                    input_text=tool_input.get("text", user_message),
-                    workload_type=tool_input.get("workload_type", "mixed")
-                )
-                parsed_response["schema"] = schema_result
-                
-            elif parsed_response.get("action") == "REFINE_SCHEMA" and current_schema:
-                tool_input = parsed_response.get("tool_input", {})
-                refined_result = apply_refinement(
-                    base_result=current_schema,
-                    refinement_text=tool_input.get("refinement", user_message),
-                    workload_type=tool_input.get("workload_type", "mixed")
-                )
-                parsed_response["schema"] = refined_result
-            
-            return parsed_response
-            
-        except Exception as e:
-            # Handle API errors
-            error_message = f"Error communicating with Claude: {str(e)}"
-            self.add_message("assistant", error_message)
-            return {
-                "reasoning": "Error occurred",
-                "action": "NONE",
-                "user_message": error_message,
-                "schema": None,
-                "error": str(e)
-            }
-    
+                pass
+
+        return None
+
+    # --------------------------------------------------------
+    # Reset
+    # --------------------------------------------------------
+
     def reset_conversation(self) -> None:
         """Clear conversation history for a fresh start."""
-        self.conversation_history = []
+        self.history = []
 
 
-# In-memory storage of user agents (in production, this would be in Redis/Database)
+# ============================================================
+# Agent Store (Swap with Redis in production)
+# ============================================================
+
 _user_agents: Dict[str, SchemaDesignAgent] = {}
 
 
@@ -166,5 +304,4 @@ def get_or_create_agent(user_id: str) -> SchemaDesignAgent:
 
 def delete_agent(user_id: str) -> None:
     """Delete agent conversation history for a user."""
-    if user_id in _user_agents:
-        del _user_agents[user_id]
+    _user_agents.pop(user_id, None)

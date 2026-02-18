@@ -1,119 +1,144 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
-import JsonPanel from "../components/JsonPanel";
-import { generateSchema } from "../api/schemas";
+import { getHistory } from "../api/schemas";
 
 const Dashboard = () => {
-  const [inputText, setInputText] = useState("");
-  const [workloadType, setWorkloadType] = useState("balanced");
-  const [result, setResult] = useState(null);
+  const [stats, setStats] = useState({
+    totalSchemas: 0,
+    recentSchemas: [],
+  });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleGenerate = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const data = await generateSchema(inputText, workloadType);
-      setResult(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const schemaEntries = result ? Object.entries(result.result.schema ?? {}) : [];
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await getHistory();
+        setStats({
+          totalSchemas: data.length,
+          recentSchemas: data.slice(0, 5),
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load stats");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadStats();
+  }, []);
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-3xl">Schema Studio</h1>
+        <h1 className="font-display text-3xl">Dashboard</h1>
         <p className="text-slate mt-2">
-          Describe your data model, select a workload profile, and let the AI craft a MongoDB schema.
+          Welcome to MongoDB Architect AI. Design intelligent schemas using natural language.
         </p>
       </div>
 
-      <section className="data-card p-6 space-y-4">
-        <textarea
-          className="w-full min-h-[140px] rounded-2xl border border-slate/20 px-4 py-3"
-          placeholder="Describe your requirements. Example: Users place orders, orders contain products, and we need frequent order history lookups."
-          value={inputText}
-          onChange={(event) => setInputText(event.target.value)}
-        />
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="text-sm font-semibold text-slate">Workload profile</label>
-          <select
-            className="rounded-full border border-slate/20 px-4 py-2"
-            value={workloadType}
-            onChange={(event) => setWorkloadType(event.target.value)}
-            aria-label="Workload profile"
-          >
-            <option value="read-heavy">Read-heavy</option>
-            <option value="write-heavy">Write-heavy</option>
-            <option value="balanced">Balanced</option>
-          </select>
-          <button
-            className="ml-auto rounded-full bg-wave text-white px-6 py-2 font-semibold shadow-soft"
-            onClick={handleGenerate}
-            disabled={loading || !inputText.trim()}
-          >
-            {loading ? "Generating..." : "Generate schema"}
-          </button>
-        </div>
-        {error && <p className="text-sm text-amber">{error}</p>}
+      {/* Quick Actions */}
+      <section className="grid gap-4 md:grid-cols-3">
+        <Link
+          to="/chat"
+          className="data-card p-6 hover:shadow-soft transition cursor-pointer group"
+        >
+          <div className="text-3xl mb-2">✨</div>
+          <h3 className="font-semibold text-ink group-hover:text-wave transition">
+            New Schema
+          </h3>
+          <p className="text-sm text-slate mt-1">Create a new schema with AI guidance</p>
+        </Link>
+
+        <Link
+          to="/history"
+          className="data-card p-6 hover:shadow-soft transition cursor-pointer group"
+        >
+          <div className="text-3xl mb-2">📋</div>
+          <h3 className="font-semibold text-ink group-hover:text-wave transition">
+            Schema History
+          </h3>
+          <p className="text-sm text-slate mt-1">View all your saved schemas</p>
+        </Link>
+
+        <Link
+          to="/compare"
+          className="data-card p-6 hover:shadow-soft transition cursor-pointer group"
+        >
+          <div className="text-3xl mb-2">🔍</div>
+          <h3 className="font-semibold text-ink group-hover:text-wave transition">
+            Compare Schemas
+          </h3>
+          <p className="text-sm text-slate mt-1">Compare different schema versions</p>
+        </Link>
       </section>
 
-      {result && (
-        <section className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-2xl">Latest Result</h2>
-            <Link className="text-wave font-semibold" to={`/schema/${result._id}`}>
-              View full detail
-            </Link>
+      {/* Stats */}
+      <section className="grid gap-6 md:grid-cols-2">
+        <div className="data-card p-6">
+          <div className="flex items-baseline justify-between">
+            <p className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">
+              Total Schemas
+            </p>
+            {!loading && (
+              <p className="font-display text-4xl text-ink">{stats.totalSchemas}</p>
+            )}
           </div>
+          <p className="text-sm text-slate mt-4">
+            {stats.totalSchemas === 0
+              ? "Create your first schema to get started"
+              : `You have generated ${stats.totalSchemas} schema${stats.totalSchemas !== 1 ? "s" : ""}`}
+          </p>
+        </div>
 
-          <div className="grid gap-6">
-            <div className="data-card p-5">
-              <h3 className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">
-                Schema JSON
-              </h3>
-              <pre className="mt-4 text-xs bg-mist/60 p-4 rounded-xl overflow-auto text-slate">
-                {JSON.stringify(result.result.schema, null, 2)}
-              </pre>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <JsonPanel title="Decisions" data={result.result.decisions} />
-              <JsonPanel title="Explanations" data={result.result.explanations} />
-              <JsonPanel title="Confidence" data={result.result.confidence} />
-              <JsonPanel title="Indexes" data={result.result.indexes} />
-            </div>
+        <div className="data-card p-6">
+          <p className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">
+            Recent Activity
+          </p>
+          <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
+            {loading ? (
+              <p className="text-sm text-slate">Loading...</p>
+            ) : stats.recentSchemas.length === 0 ? (
+              <p className="text-sm text-slate">No schemas yet</p>
+            ) : (
+              stats.recentSchemas.map((schema) => (
+                <Link
+                  key={schema._id}
+                  to={`/schema/${schema._id}`}
+                  className="block text-sm p-2 rounded hover:bg-mist/50 transition text-slate hover:text-wave truncate"
+                >
+                  {schema.inputText.slice(0, 50)}...
+                </Link>
+              ))
+            )}
           </div>
+        </div>
+      </section>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <JsonPanel title="Warnings" data={result.result.warnings} />
-            <JsonPanel title="Why not" data={result.result.whyNot} />
-          </div>
-
-          <div className="data-card p-6">
-            <h3 className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">Visual map</h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {schemaEntries.map(([collection, fields]) => (
-                <div key={collection} className="rounded-2xl border border-slate/20 p-4 bg-mist/40">
-                  <p className="font-semibold text-ink">{collection}</p>
-                  <ul className="text-sm text-slate mt-2 space-y-1">
-                    {Object.keys(fields).map((field) => (
-                      <li key={field}>{field}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+      {error && (
+        <div className="data-card p-6 text-amber">
+          <p>{error}</p>
+        </div>
       )}
+
+      {/* About Section */}
+      <section className="data-card p-8">
+        <h2 className="font-display text-2xl mb-4">How It Works</h2>
+        <div className="grid gap-6 md:grid-cols-3 text-sm text-slate">
+          <div>
+            <div className="text-lg font-semibold text-wave mb-2">1. Describe</div>
+            <p>Use natural language to describe your data model and requirements.</p>
+          </div>
+          <div>
+            <div className="text-lg font-semibold text-wave mb-2">2. Generate</div>
+            <p>AI analyzes your requirements and generates an optimal MongoDB schema.</p>
+          </div>
+          <div>
+            <div className="text-lg font-semibold text-wave mb-2">3. Refine</div>
+            <p>Chat with the AI to refine and improve your schema iteratively.</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

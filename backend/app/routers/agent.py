@@ -19,7 +19,7 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 @router.post("/chat", response_model=AgentChatResponse)
 async def chat_with_agent(
     request: AgentChatRequest,
-    user_id: Annotated[str, Depends(get_current_user)]
+    current_user=Depends(get_current_user)
 ) -> AgentChatResponse:
     """
     Chat with the MongoDB schema design agent.
@@ -30,6 +30,7 @@ async def chat_with_agent(
     - Provide reasoning and recommendations
     """
     
+    user_id = current_user.get("_id")
     db = get_db()
     
     # Get or create agent for this user
@@ -39,22 +40,32 @@ async def chat_with_agent(
     current_schema = None
     if request.schema_id:
         try:
-            schema_doc = await db["schemas"].find_one({"_id": ObjectId(request.schema_id)})
+            schema_doc = await db.schemaHistory.find_one({"_id": ObjectId(request.schema_id)})
             if schema_doc:
                 current_schema = schema_doc.get("result")
         except Exception:
             # If schema lookup fails, proceed without context
             pass
     
-    # Get agent response
-    response = agent.chat(user_message=request.message, current_schema=current_schema)
+    # Get agent response - wrap in try-except for proper error handling
+    try:
+        response = agent.chat(user_message=request.message, current_schema=current_schema)
+    except Exception as e:
+        return AgentChatResponse(
+            user_msg=request.message,
+            reasoning="Error occurred during schema generation",
+            action="NONE",
+            schema_def=None,
+            schema_id=None,
+            error=f"Agent error: {str(e)}"
+        )
     
     # If action is GENERATE_SCHEMA or REFINE_SCHEMA, save to database
     schema_id_to_return = None
     if response.get("schema") and request.schema_id:
         try:
             # Update existing schema with new version
-            schema_doc = await db["schemas"].find_one({"_id": ObjectId(request.schema_id)})
+            schema_doc = await db.schemaHistory.find_one({"_id": ObjectId(request.schema_id)})
             if schema_doc:
                 new_version = (schema_doc.get("version", 1) or 1) + 1
                 root_id = schema_doc.get("rootId") or request.schema_id
@@ -71,7 +82,7 @@ async def chat_with_agent(
                     "rootId": root_id
                 }
                 
-                result = await db["schemas"].insert_one(new_schema_doc)
+                result = await db.schemaHistory.insert_one(new_schema_doc)
                 schema_id_to_return = str(result.inserted_id)
         except Exception:
             # If save fails, still return response
@@ -89,7 +100,7 @@ async def chat_with_agent(
                 "version": 1
             }
             
-            result = await db["schemas"].insert_one(schema_doc)
+            result = await db.schemaHistory.insert_one(schema_doc)
             schema_id_to_return = str(result.inserted_id)
         except Exception:
             # If save fails, still return response
@@ -106,7 +117,8 @@ async def chat_with_agent(
 
 
 @router.post("/reset")
-async def reset_agent(user_id: Annotated[str, Depends(get_current_user)]) -> dict:
+async def reset_agent(current_user=Depends(get_current_user)) -> dict:
     """Reset conversation history for the current user's agent."""
+    user_id = current_user.get("_id")
     delete_agent(user_id)
     return {"message": "Agent conversation reset successfully"}

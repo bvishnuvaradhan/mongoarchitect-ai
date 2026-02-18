@@ -21,3 +21,15 @@ export const refineSchema = async (schemaId, refinementText, workloadType) => {
     json: { schemaId, refinementText, workloadType }
   });
 };
+
+export const deleteSchema = async (id) => {
+  return apiFetch(`/schemas/${id}`, {
+    method: "DELETE"
+  });
+};
+
+export const deleteAllSchemas = async () => {
+  return apiFetch("/schemas", {
+    method: "DELETE"
+  });
+};
