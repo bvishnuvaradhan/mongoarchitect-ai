@@ -389,8 +389,9 @@ const SchemaDetail = () => {
               || currentSchema?.result?.explanations?.["Depth Calculation"]
               || currentSchema?.result?.explanations?.normalization;
             
+            // Only show Alternatives - actual actionable suggestions, not trade-off explanations
             const alternatives = currentSchema?.result?.explanations?.Alternatives
-              || currentSchema?.result?.explanations?.denormalization;
+              || currentSchema?.result?.explanations?.["Future Refinement"];
             
             return summary && (
               <div className="mt-4 px-3 py-2 bg-wave/10 border border-wave/30 rounded-lg text-sm">

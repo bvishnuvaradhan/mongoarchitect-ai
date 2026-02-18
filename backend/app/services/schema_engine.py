@@ -920,7 +920,8 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
   "warnings": ["Specific warning with context", "If goal not met: Warning about remaining issues"],
   "explanations": {{
     "Key Topic": "Detailed explanation of why this design choice",
-    "refinement": "Explanation of what changed and why"
+    "refinement": "Explanation of what changed and why",
+    "Alternatives": "⚠️ ONLY include this if new warnings were added or refinement failed - provide ONE actionable suggestion to reduce warnings or improve the schema (e.g., 'To reduce data inconsistency warnings, add a background sync job' or 'Consider moving embedded arrays to separate collections to reduce depth')"
   }},
   "confidence": {{"collection_name": 85}},
   "accessPattern": "{workload_type}"
@@ -935,11 +936,22 @@ EXAMPLE refinementSummary PARTIAL SUCCESS:
 EXAMPLE refinementSummary FAILURE:
 "Failed to achieve max depth 2 (requested) - current depth remains at 4. Simplified all ObjectId refs to String but cartItems array structure inherently adds depth. Achieving depth 2 requires removing all embedded arrays and fully denormalizing data."
 
-CRITICAL: 
-1. The refinementSummary MUST be the FIRST field in your JSON response
-2. Write it as ONE clear sentence explaining the actual outcome
-3. Include specific numbers (depth before/after, fields added/removed)
-4. If you couldn't fully achieve the request, say WHY"""
+WHEN TO ADD "Alternatives" FIELD:
+- If new warnings were added → Suggest how to resolve them
+- If refinement partially failed → Suggest next step to complete it
+- If refinement created trade-offs → Suggest how to mitigate them
+- DO NOT just restate the problem - provide an actionable next step
+
+EXAMPLE Alternatives:
+"To maintain data consistency with denormalized data, implement update triggers or use MongoDB transactions to sync changes across orders and products collections."
+"To achieve depth 2, move all embedded arrays (cartItems, orderItems) to separate collections with simple string references."
+
+CRITICAL RULES:
+1. refinementSummary MUST be the FIRST field in your JSON response - this is NON-NEGOTIABLE
+2. Write it as ONE clear sentence explaining what you achieved vs. what was requested
+3. Include specific numbers (depth/fields/collections before→after)
+4. If refinement failed or created new warnings, ADD "Alternatives" field with actionable next step
+5. "Alternatives" should help REDUCE warnings, not just explain trade-offs"""
 
     try:
         response = _groq.chat.completions.create(
