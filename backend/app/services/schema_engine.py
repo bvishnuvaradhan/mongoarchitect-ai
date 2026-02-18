@@ -924,10 +924,21 @@ DEPTH CALCULATION EXAMPLE:
 🚨 CRITICAL: Your JSON response MUST start with "refinementSummary" as the very first field. This is NON-NEGOTIABLE.
 Without this field, the response is considered INVALID.
 
+🚫 FORBIDDEN PATTERNS - These are INVALID refinementSummary responses:
+- "Applied refinement: [anything]" ❌ NEVER USE THIS
+- "Successfully [vague action] the schema" ❌ TOO GENERIC
+- "Implemented [user request]" ❌ DOESN'T DESCRIBE ACTUAL SCHEMA CHANGES
+
+✅ REQUIRED PATTERN:
+- Start with "Cannot implement..." if application-level, OR "Successfully..." if schema change
+- Always state WHAT FIELDS you added/removed/changed
+- Always include BEFORE→AFTER numbers
+- Example: "Cannot implement transactions in schema. Added version fields to orders, orderItems, products for optimistic locking, increasing fields from 97 to 100."
+
 RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
 
 {{
-  "refinementSummary": "⚠️ MANDATORY - ONE detailed sentence with SPECIFIC ACTIONS and NUMBERS. Format: 'Successfully [specific action taken] by [what you changed], reducing [metric] from X to Y and [another metric] from A to B.' OR 'Failed/Partially achieved [goal]: [specific reason]. Current [metric]=X (target was Y).' NEVER just say 'Applied refinement: [user request]' - that's too generic!",
+  "refinementSummary": "🚨 FIRST FIELD - MUST describe ACTUAL SCHEMA CHANGES (fields added/removed/renamed), NOT just repeat user request. If application-level: 'Cannot implement [feature] in schema (application-level). Added [specific fields] to [collections] for [purpose], increasing fields from X to Y.' If schema-level: 'Successfully [action] by [specific changes], reducing/increasing [metric] from X to Y.'",
   "description": "Brief description of what was changed",
   "schema": {{"collection_name": {{"field": "Type"}}}},
   "entities": ["list", "of", "collections"],
@@ -944,8 +955,8 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
   "warnings": ["Specific warning with context", "If goal not met: Warning about remaining issues"],
   "explanations": {{
     "Key Topic": "Detailed explanation of why this design choice",
-    "refinement": "Specific detail about what changed (e.g., 'Removed products[] array from orders and orders[] array from products, eliminated 17 redundant fields')",
-    "Alternatives": "⚠️ MANDATORY if new warnings added - ONE actionable solution (NOT trade-off explanation). Example: 'To resolve data inconsistency warnings, use MongoDB change streams or application-level event handlers to sync updates between related collections.'"
+    "refinement": "⚠️ NEVER just repeat user request. Describe ACTUAL schema changes: 'Added version number fields to orders (orders.version), orderItems (orderItems.version), products (products.version) for optimistic locking support'",
+    "Alternatives": "⚠️ MANDATORY if application-level request or new warnings. Provide DETAILED implementation guidance with specific API methods, code patterns, or MongoDB features. Example: 'To implement transactions: (1) In Node.js, use const session = client.startSession(); session.withTransaction(async () => {{...}}), (2) In Python, use with client.start_session() as session: with session.start_transaction(): ..., OR (3) Use MongoDB Atlas triggers in the Triggers UI.'"
   }},
   "confidence": {{"collection_name": 85}},
   "accessPattern": "{workload_type}"
@@ -981,22 +992,23 @@ EXAMPLE Alternatives - GOOD (Schema-level solutions):
 "To prevent data inconsistency warnings, add version number fields (e.g., __v) to orders, orderItems, and products for optimistic locking, or add lastModified timestamp fields for conflict detection."
 "To reduce depth to 2, convert cartItemIds array-of-strings into a separate cartItems collection with userId reference."
 
-EXAMPLE Alternatives - GOOD (Application-level guidance):
-"To implement change streams for data consistency: (1) Use MongoDB watch() API in your Node.js/Python code on orders and orderItems collections, (2) Set up Atlas triggers for automatic cross-collection updates, or (3) Use multi-document transactions with session.withTransaction() to ensure atomic updates."
-"To maintain referential integrity: Use MongoDB Atlas App Services database triggers or implement cascade delete logic in your application's delete handlers for related documents."
+EXAMPLE Alternatives - GOOD (Application-level - DETAILED):
+"To implement multi-document transactions: (1) Node.js: const session = client.startSession(); await session.withTransaction(async () => {{ await ordersCollection.updateOne(..., {{ session }}); await orderItemsCollection.updateMany(..., {{ session }}); }}); (2) Python: with client.start_session() as session: with session.start_transaction(): orders_collection.update_one(..., session=session); order_items_collection.update_many(..., session=session); (3) MongoDB Atlas: Create trigger on orders collection → Functions → Add your sync logic."
+"To implement change streams: (1) Node.js: const changeStream = ordersCollection.watch(); changeStream.on('change', async (change) => {{ if (change.operationType === 'update') await orderItemsCollection.updateMany(...)  }}); (2) Python: with orders_collection.watch() as stream: for change in stream: if change['operationType'] == 'update': order_items_collection.update_many(...); (3) MongoDB Compass: Set up Atlas Triggers for automatic propagation."
 
 EXAMPLE Alternatives - BAD (too generic):
 "Consider using transactions" ❌
 "May need to optimize" ❌
 "Use change streams to sync data" ❌
+"Use MongoDB's session.withTransaction() method" ❌ TOO VAGUE
 
 🚨 CRITICAL RULES:
-1. refinementSummary MUST be FIRST field with SPECIFIC ACTIONS and NUMBERS (never just "Applied refinement: [request]")
-2. If user requests APPLICATION-LEVEL feature: Explain it's not schema-implementable, add preparatory fields, provide Alternatives with implementation code guidance
-3. If new warnings added, Alternatives field is MANDATORY with actionable solution
-4. Include before→after metrics (depth, fields, collections) in every refinementSummary
-5. Be honest about success/partial/failure - never claim success if you just added timestamps
-6. Alternatives must help REDUCE warnings with specific steps, not just explain trade-offs"""
+1. refinementSummary MUST describe ACTUAL SCHEMA CHANGES (fields added/removed), NEVER "Applied refinement: [request]" ❌
+2. For APPLICATION-LEVEL requests: Say "Cannot implement in schema", add preparatory fields, provide Alternatives with DETAILED code examples (API calls, actual code patterns)
+3. If new warnings added, Alternatives is MANDATORY with specific implementation steps
+4. Include before→after numbers in EVERY refinementSummary
+5. Never claim success if you only added preparatory fields - be honest about limitations
+6. Alternatives must include numbered steps with actual code/API patterns users can implement"""
 
     try:
         response = _groq.chat.completions.create(
