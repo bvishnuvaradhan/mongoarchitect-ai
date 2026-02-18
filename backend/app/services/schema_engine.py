@@ -925,20 +925,29 @@ DEPTH CALCULATION EXAMPLE:
 Without this field, the response is considered INVALID.
 
 🚫 FORBIDDEN PATTERNS - These are INVALID refinementSummary responses:
-- "Applied refinement: [anything]" ❌ NEVER USE THIS
+- "Applied refinement: [anything]" ❌ NEVER USE THIS - INSTANT FAILURE
 - "Successfully [vague action] the schema" ❌ TOO GENERIC
 - "Implemented [user request]" ❌ DOESN'T DESCRIBE ACTUAL SCHEMA CHANGES
+- Repeating user's request verbatim ❌ DESCRIBES INTENT, NOT ACTUAL CHANGES
 
-✅ REQUIRED PATTERN:
-- Start with "Cannot implement..." if application-level, OR "Successfully..." if schema change
-- Always state WHAT FIELDS you added/removed/changed
-- Always include BEFORE→AFTER numbers
-- Example: "Cannot implement transactions in schema. Added version fields to orders, orderItems, products for optimistic locking, increasing fields from 97 to 100."
+✅ REQUIRED PATTERNS (pick ONE based on situation):
+
+1. Schema changes made:
+   "Successfully [action] by adding/removing [specific fields], increasing/reducing [metric] from X to Y."
+   Example: "Successfully added address type tracking by adding addressType field to addresses collection, increasing total fields from 85 to 86."
+
+2. Application-level request with preparatory fields:
+   "Cannot implement [feature] in schema (application-level). Added [fields] to [collections] for [purpose], increasing fields from X to Y."
+   Example: "Cannot implement transactions in schema (application-level). Added version fields to orders, orderItems, products for optimistic locking, increasing fields from 97 to 100."
+
+3. No schema changes needed:
+   "No schema changes made - [reason: feature already implemented / is application-level / requires code not schema]."
+   Example: "No schema changes made - transaction support requires application code implementation using session.withTransaction(), and preparatory version fields already exist from v21."
 
 RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
 
 {{
-  "refinementSummary": "🚨 FIRST FIELD - MUST describe ACTUAL SCHEMA CHANGES (fields added/removed/renamed), NOT just repeat user request. If application-level: 'Cannot implement [feature] in schema (application-level). Added [specific fields] to [collections] for [purpose], increasing fields from X to Y.' If schema-level: 'Successfully [action] by [specific changes], reducing/increasing [metric] from X to Y.'",
+  "refinementSummary": "🚨 DESCRIBE WHAT YOU ACTUALLY DID TO THE SCHEMA (fields added/removed/changed) with before→after numbers, OR if no changes: 'No schema changes made - [why]'. NEVER start with 'Applied refinement:' or repeat user's request.",
   "description": "Brief description of what was changed",
   "schema": {{"collection_name": {{"field": "Type"}}}},
   "entities": ["list", "of", "collections"],
@@ -952,11 +961,11 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
   "indexes": [
     {{"collection": "name", "fields": ["field"], "unique": true/false, "reason": "Specific reason"}}
   ],
-  "warnings": ["Specific warning with context", "If goal not met: Warning about remaining issues"],
+  "warnings": ["⚠️ IMPORTANT: Only include warnings that are ACTUALLY PRESENT in this schema version. Don't repeat old warnings unless they still apply. Don't just copy from previous version."],
   "explanations": {{
     "Key Topic": "Detailed explanation of why this design choice",
-    "refinement": "⚠️ NEVER just repeat user request. Describe ACTUAL schema changes: 'Added version number fields to orders (orders.version), orderItems (orderItems.version), products (products.version) for optimistic locking support'",
-    "Alternatives": "⚠️ MANDATORY if application-level request or new warnings. Provide DETAILED implementation guidance with specific API methods, code patterns, or MongoDB features. Example: 'To implement transactions: (1) In Node.js, use const session = client.startSession(); session.withTransaction(async () => {{...}}), (2) In Python, use with client.start_session() as session: with session.start_transaction(): ..., OR (3) Use MongoDB Atlas triggers in the Triggers UI.'"
+    "refinement": "⚠️ DESCRIBE ACTUAL CHANGES: 'No schema changes made - [reason]' OR 'Added version fields to orders, orderItems, products' OR 'Removed denormalized arrays'. NEVER 'Applied refinement: [user request]'",
+    "Alternatives": "⚠️ MANDATORY if application-level request or new warnings. Provide DETAILED implementation with specific API calls. Example: 'To implement transactions: (1) Node.js: const session = client.startSession(); await session.withTransaction(async () => {{ await ordersCollection.updateOne(..., {{ session }}); }});'"
   }},
   "confidence": {{"collection_name": 85}},
   "accessPattern": "{workload_type}"
@@ -970,10 +979,16 @@ EXAMPLE refinementSummary - GOOD (Application-level request):
 "Cannot implement change streams in schema (application-level feature). Added updatedAt timestamps to 6 collections (users, sellers, orders, orderItems, products, payments) as preparatory fields for change tracking, increasing total fields from 91 to 97."
 "Cannot implement transactions at schema level. Added version number fields to orders, orderItems, and products collections for optimistic locking support, increasing total fields from 91 to 94."
 
-EXAMPLE refinementSummary - BAD (too generic):
-"Applied refinement: do normalizing" ❌
-"Applied refinement: implement MongoDB change streams or transactions" ❌
-"Successfully normalized the schema" ❌  
+EXAMPLE refinementSummary - GOOD (No changes needed):
+"No schema changes made - session.withTransaction() is an application-level MongoDB driver method, not a schema feature. Existing version fields (from v21) already support transaction-based optimistic locking."
+"No schema changes made - requested fields (updatedAt, version) already exist in schema from previous refinements v20-v21."
+
+EXAMPLE refinementSummary - BAD (FORBIDDEN - will fail):
+"Applied refinement: do normalizing" ❌ NEVER USE "Applied refinement:"
+"Applied refinement: implement MongoDB change streams or transactions" ❌ FORBIDDEN PATTERN
+"Applied refinement: use MongoDB's session.withTransaction() method" ❌ INSTANT REJECTION
+"Successfully normalized the schema" ❌ TOO VAGUE - no specifics
+"Implemented the requested changes" ❌ DOESN'T SAY WHAT CHANGED
 
 EXAMPLE refinementSummary PARTIAL SUCCESS:
 "Partially achieved depth target: Reduced from 5 to 3 by flattening enums and address fields, but depth 2 impossible due to cartItems array structure (array of objects = depth 3)."
@@ -982,6 +997,7 @@ EXAMPLE refinementSummary FAILURE:
 "Failed to achieve max depth 2 (current: 4). Converted all ObjectId to String but embedded arrays (cartItems, orderItems) inherently require depth 3+. Would need full denormalization to separate collections."
 
 ⚠️ MANDATORY "Alternatives" FIELD WHEN:
+- Application-level request made → MUST provide implementation code examples
 - New warnings added → MUST suggest how to resolve them
 - Refinement partially failed → MUST suggest next step to complete it
 - User requested application-level feature → MUST provide implementation guidance
@@ -1002,13 +1018,17 @@ EXAMPLE Alternatives - BAD (too generic):
 "Use change streams to sync data" ❌
 "Use MongoDB's session.withTransaction() method" ❌ TOO VAGUE
 
-🚨 CRITICAL RULES:
-1. refinementSummary MUST describe ACTUAL SCHEMA CHANGES (fields added/removed), NEVER "Applied refinement: [request]" ❌
-2. For APPLICATION-LEVEL requests: Say "Cannot implement in schema", add preparatory fields, provide Alternatives with DETAILED code examples (API calls, actual code patterns)
-3. If new warnings added, Alternatives is MANDATORY with specific implementation steps
-4. Include before→after numbers in EVERY refinementSummary
-5. Never claim success if you only added preparatory fields - be honest about limitations
-6. Alternatives must include numbered steps with actual code/API patterns users can implement"""
+🚨 CRITICAL RULES - FAILURE TO FOLLOW = INVALID RESPONSE:
+1. refinementSummary: 🚫 NEVER EVER use "Applied refinement: [anything]" - This is FORBIDDEN and results in automatic rejection
+2. refinementSummary MUST describe one of these:
+   - "Successfully [action] by adding/removing [specific fields], increasing/reducing [metric] from X to Y"
+   - "Cannot implement [feature] in schema. Added [fields] for [purpose], increasing fields from X to Y"
+   - "No schema changes made - [clear reason why]"
+3. For APPLICATION-LEVEL requests (transactions, change streams, triggers): Say "Cannot implement in schema", add preparatory fields if helpful, provide Alternatives with DETAILED code examples
+4. If NO schema changes made: Say "No schema changes made - [reason]" and explain why in Alternatives
+5. Include before→after numbers whenever you change something
+6. Alternatives is MANDATORY for application-level requests with specific API calls, code patterns, or Atlas UI steps
+7. Only include warnings that ACTUALLY apply to the current schema - don't copy from previous version"""
 
     try:
         response = _groq.chat.completions.create(
