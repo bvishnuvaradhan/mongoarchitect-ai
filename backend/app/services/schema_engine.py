@@ -3,9 +3,16 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Tuple
 
 import copy
-
+import json
 import difflib
 import re
+
+from groq import Groq
+
+from ..config import settings
+
+# Initialize Groq client with API key from config
+_groq = Groq(api_key=settings.groq_api_key)
 
 
 ENTITY_TEMPLATES: Dict[str, List[str]] = {
@@ -611,6 +618,166 @@ def _explanations(decisions: Dict[str, str]) -> Dict[str, str]:
 
 
 def generate_schema(input_text: str, workload_type: str) -> Dict[str, Any]:
+    """Generate MongoDB schema using Groq API for intelligent reasoning."""
+    
+    # Detect many-to-many relationships with attributes
+    has_pricing = any(kw in input_text.lower() for kw in ['cost', 'price', 'pricing', 'different cost', 'different price'])
+    has_inventory = any(kw in input_text.lower() for kw in ['inventory', 'stock', 'quantity', 'availability'])
+    
+    many_to_many_guidance = ""
+    if has_pricing or has_inventory:
+        many_to_many_guidance = """
+IMPORTANT: If there's a many-to-many relationship with attributes (like products in multiple stores with DIFFERENT prices/costs for each store):
+- Create a JUNCTION collection to model this (e.g., "store_inventory", "product_store_mapping", etc.)
+- Junction structure: {store_id: ObjectId, product_id: ObjectId, cost/price: Number, quantity: Number}
+- This allows efficient queries like "find all products in store X with cost > Y" or "find all stores selling product X with different prices"
+"""
+    
+    prompt = f"""You are a MongoDB schema architect expert. Design an OPTIMAL MongoDB schema for:
+
+User Requirement: {input_text}
+Workload Type: {workload_type}
+
+{many_to_many_guidance}
+
+REQUIREMENTS: Respond with DETAILED, COMPLETE JSON only (no markdown, no extra text). Include realistic fields in each collection. Provide SPECIFIC explanations, not generic ones.
+
+Example response format:
+{{
+  "description": "Complete schema for an e-commerce platform with products, stores, and ratings",
+  "schema": {{
+    "products": {{
+      "_id": "ObjectId",
+      "name": "String",
+      "description": "String",
+      "category": "String",
+      "basePrice": "Number",
+      "sku": "String",
+      "createdAt": "Date"
+    }},
+    "stores": {{
+      "_id": "ObjectId",
+      "name": "String", 
+      "location": "String",
+      "city": "String",
+      "phone": "String",
+      "createdAt": "Date"
+    }},
+    "store_inventory": {{
+      "_id": "ObjectId",
+      "productId": "ObjectId (ref: products)",
+      "storeId": "ObjectId (ref: stores)",
+      "cost": "Number",
+      "quantity": "Number",
+      "lastRestocked": "Date"
+    }},
+    "product_ratings": {{
+      "_id": "ObjectId",
+      "productId": "ObjectId (ref: products)",
+      "userId": "ObjectId",
+      "rating": "Number (1-5)",
+      "title": "String",
+      "comments": [
+        {{"text": "String", "createdAt": "Date"}}
+      ],
+      "createdAt": "Date"
+    }}
+  }},
+  "entities": ["products", "stores", "store_inventory", "product_ratings"],
+  "relationships": [
+    "products -> store_inventory -> stores (many-to-many)",
+    "products -> product_ratings (one-to-many)"
+  ],
+  "decisions": {{
+    "products": "→ SEPARATE COLLECTION (SCALABILITY) - Enables independent product catalog management",
+    "stores": "→ SEPARATE COLLECTION - Supports multi-store operations and inventory tracking",
+    "store_inventory": "→ JUNCTION COLLECTION - Essential for many-to-many with DIFFERENT COSTS per store",
+    "product_ratings": "→ SEPARATE COLLECTION - Prevents array growth issues for unbounded ratings",
+    "relationships": {{
+      "Products to Stores": "JUNCTION COLLECTION - Allows different pricing per store, efficient store lookups",
+      "Ratings to Products": "SEPARATE COLLECTION - Enables pagination and archiving of old ratings",
+      "Comments to Ratings": "EMBED - Atomic access, comments always with their rating"
+    }}
+  }},
+  "indexes": [
+    {{"collection": "store_inventory", "fields": ["storeId", "productId"], "unique": true, "reason": "Fast lookup of product prices in a specific store"}},
+    {{"collection": "store_inventory", "field": "productId", "reason": "Find all stores selling a product"}},
+    {{"collection": "product_ratings", "field": "productId", "reason": "Fetch all ratings for a product with pagination"}}
+  ],
+  "warnings": [
+    "Ratings collection can grow large: implement pagination and consider archiving old ratings (>1 year)",
+    "Store_inventory size scales with products × stores: ensure both indexes for performance"
+  ],
+  "explanations": {{
+    "Why Separate Collections": "Products, stores, and ratings are independent entities with separate growth patterns. Separation allows independent scaling.",
+    "Junction Collection for Many-to-Many": "Each product-store pair needs DIFFERENT costs. Query examples: 'Products in store X', 'Stores selling product Y at cost < $50'",
+    "Separate Ratings Collection": "If ratings array embedded in products, it grows without bound. Separate collection enables pagination, archiving, and efficient indexing.",
+    "Comments Embedded": "Comments are always accessed with ratings. Embedding is optimal for frequently accessed correlated data.",
+    "Access Patterns": "Read-heavy: index on storeId for fast store lookups. Rated products: index on productId for fast rating fetch. Time-based: createdAt index for recent reviews."
+  }}
+}}"""
+    
+    try:
+        response = _groq.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2000
+        )
+        
+        response_text = response.choices[0].message.content.strip()
+        
+        # Try to parse as JSON
+        try:
+            result = json.loads(response_text)
+        except json.JSONDecodeError:
+            # If not valid JSON, try extracting JSON from the response
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                result = json.loads(response_text[json_start:json_end])
+            else:
+                raise ValueError("Could not parse Groq response as JSON")
+        
+        # Extract relationships from decisions if nested, or use top-level relationships
+        relationships_obj = result.get("relationships", {})
+        decisions_obj = result.get("decisions", {})
+        
+        # If relationships is nested in decisions, extract it
+        if "relationships" in decisions_obj and isinstance(decisions_obj["relationships"], dict):
+            relationships_obj = decisions_obj.pop("relationships")
+        elif isinstance(relationships_obj, list):
+            # Convert list of relationship strings to dict if needed
+            rel_dict = {}
+            for rel in relationships_obj:
+                if isinstance(rel, str):
+                    parts = rel.split(" -> ")
+                    if len(parts) >= 2:
+                        rel_name = " to ".join(parts[:2])
+                        rel_dict[rel_name] = rel
+            relationships_obj = rel_dict if rel_dict else {}
+        
+        # Ensure all required fields exist
+        return {
+            "entities": result.get("entities", []),
+            "relationships": relationships_obj,  # Now a proper dict
+            "attributes": {entity: [] for entity in result.get("entities", [])},
+            "decisions": decisions_obj,  # Without nested relationships
+            "whyNot": {},
+            "confidence": {entity: 95 for entity in result.get("entities", [])},
+            "schema": result.get("schema", {}),
+            "indexes": result.get("indexes", []),
+            "warnings": result.get("warnings", []),
+            "explanations": result.get("explanations", {"design": result.get("description", "Schema generated by Groq")}),
+            "accessPattern": workload_type,
+        }
+        
+    except Exception as e:
+        # Fallback to rule-based generation if Groq fails
+        return _generate_schema_fallback(input_text, workload_type, str(e))
+
+
+def _generate_schema_fallback(input_text: str, workload_type: str, error: str) -> Dict[str, Any]:
+    """Fallback rule-based schema generation if Groq fails."""
     entities = _extract_entities(input_text)
     relationships = _relationships(input_text, entities)
     decisions = _decide_embed_or_reference(input_text, workload_type, relationships)
@@ -623,7 +790,7 @@ def generate_schema(input_text: str, workload_type: str) -> Dict[str, Any]:
         "confidence": _confidence(decisions),
         "schema": _schema(entities, decisions),
         "indexes": _indexes(decisions),
-        "warnings": _warnings(input_text, decisions),
+        "warnings": _warnings(input_text, decisions) + [f"Fallback NLP mode (Groq error: {error})"],
         "explanations": _explanations(decisions),
         "accessPattern": workload_type,
     }
@@ -681,6 +848,139 @@ def _update_relationships(relationships: List[str], old: str, new: str) -> List[
 
 
 def apply_refinement(base_result: Dict[str, Any], refinement_text: str, workload_type: str) -> Dict[str, Any]:
+    """Apply refinement using LLM to regenerate schema with updated decisions, warnings, and relationships."""
+    
+    current_schema = base_result.get("schema", {})
+    current_decisions = base_result.get("decisions", {})
+    current_explanations = base_result.get("explanations", {})
+    
+    prompt = f"""You are a MongoDB schema architect expert. You need to REFINE an existing schema based on a user's modification request.
+
+CURRENT SCHEMA:
+{json.dumps(current_schema, indent=2)}
+
+CURRENT DECISIONS:
+{json.dumps(current_decisions, indent=2)}
+
+USER REFINEMENT REQUEST: {refinement_text}
+
+Workload Type: {workload_type}
+
+TASK: Apply the refinement and return a COMPLETE, UPDATED schema with:
+1. Modified schema structure (add/remove/rename fields/collections as requested)
+2. Updated decisions explaining why each collection is separate/embedded
+3. Updated relationships
+4. Updated indexes
+5. Updated warnings
+6. Updated explanations (specific to the changes made)
+7. Updated confidence scores
+
+IMPORTANT RULES:
+- If adding a field to a nested object (like "address"), add it INSIDE that object, not at root level
+- If the request mentions "whether X or Y or Z", create an enum field: {{"type": "enum(['X', 'Y', 'Z'])"}}
+- Use camelCase for field names
+- Be specific in explanations - explain WHY the change was made and its impact
+- Maintain existing collections unless explicitly asked to remove them
+
+RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
+
+{{
+  "description": "Brief description of what was changed",
+  "schema": {{"collection_name": {{"field": "Type"}}}},
+  "entities": ["list", "of", "collections"],
+  "relationships": ["collection1 -> collection2 (type)"],
+  "decisions": {{
+    "collection_name": "→ DECISION - Specific reason",
+    "relationships": {{
+      "Relationship Name": "DECISION - Why this pattern"
+    }}
+  }},
+  "indexes": [
+    {{"collection": "name", "fields": ["field"], "unique": true/false, "reason": "Specific reason"}}
+  ],
+  "warnings": ["Specific warning with context"],
+  "explanations": {{
+    "Key Topic": "Detailed explanation of why this design choice",
+    "refinement": "Explanation of what changed and why"
+  }},
+  "confidence": {{"collection_name": 85}},
+  "accessPattern": "{workload_type}"
+}}"""
+
+    try:
+        response = _groq.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2500,
+            temperature=0.2
+        )
+        
+        response_text = response.choices[0].message.content.strip()
+        
+        # Try to parse as JSON
+        try:
+            result = json.loads(response_text)
+        except json.JSONDecodeError:
+            # If not valid JSON, try extracting JSON from the response
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                result = json.loads(response_text[json_start:json_end])
+            else:
+                # Fallback to regex-based approach if LLM fails
+                return _apply_refinement_regex(base_result, refinement_text, workload_type)
+        
+        # Process relationships similar to generate_schema
+        relationships_obj = result.get("relationships", {})
+        decisions_obj = result.get("decisions", {})
+        
+        if "relationships" in decisions_obj and isinstance(decisions_obj["relationships"], dict):
+            relationships_obj = decisions_obj.pop("relationships")
+        elif isinstance(relationships_obj, list):
+            rel_dict = {}
+            for rel_str in relationships_obj:
+                rel_dict[rel_str] = result.get("decisions", {}).get(rel_str, "reference")
+            relationships_obj = rel_dict
+        
+        # Ensure all required fields exist
+        final_result = {
+            "schema": result.get("schema", current_schema),
+            "entities": result.get("entities", list(result.get("schema", {}).keys())),
+            "relationships": list(relationships_obj.keys()) if isinstance(relationships_obj, dict) else relationships_obj,
+            "attributes": _extract_attributes(result.get("schema", {})),
+            "decisions": decisions_obj,
+            "whyNot": result.get("whyNot", {}),
+            "indexes": result.get("indexes", []),
+            "warnings": result.get("warnings", []),
+            "explanations": result.get("explanations", {}),
+            "confidence": result.get("confidence", {}),
+            "accessPattern": workload_type
+        }
+        
+        # Add refinement note to explanations
+        if "explanations" not in final_result:
+            final_result["explanations"] = {}
+        final_result["explanations"]["refinement"] = f"Applied refinement: {refinement_text.strip()}"
+        
+        return final_result
+        
+    except Exception as e:
+        # Fallback to regex-based approach if LLM fails
+        print(f"LLM refinement failed: {e}, falling back to regex approach")
+        return _apply_refinement_regex(base_result, refinement_text, workload_type)
+
+
+def _extract_attributes(schema: Dict[str, Any]) -> Dict[str, List[str]]:
+    """Extract attributes from schema for each collection."""
+    attributes = {}
+    for collection, fields in schema.items():
+        if isinstance(fields, dict):
+            attributes[_title_case(collection)] = list(fields.keys())
+    return attributes
+
+
+def _apply_refinement_regex(base_result: Dict[str, Any], refinement_text: str, workload_type: str) -> Dict[str, Any]:
+    """Legacy regex-based refinement (fallback when LLM fails)."""
     result = copy.deepcopy(base_result)
     schema: Dict[str, Any] = result.get("schema", {})
     entities: List[str] = result.get("entities", [])
@@ -748,6 +1048,9 @@ def apply_refinement(base_result: Dict[str, Any], refinement_text: str, workload
             continue
 
         add_field = re.search(r"add field\s+(?P<field>[\w\s]+)\s+to\s+(?P<collection>[\w\s]+)", lower)
+        # Also support simpler patterns like "add <field> to/for <collection>"
+        if not add_field:
+            add_field = re.search(r"add\s+(?P<field>[\w\s]+?)\s+(?:to|for|in)\s+(?P<collection>[\w\s]+)", lower)
         if add_field:
             field = _to_camel(_normalize_term(add_field.group("field")))
             collection = _ensure_collection(schema, entities, attributes, add_field.group("collection"))
@@ -773,11 +1076,21 @@ def apply_refinement(base_result: Dict[str, Any], refinement_text: str, workload
         remove_field = re.search(
             r"remove field\s+(?P<field>[\w\s]+)\s+from\s+(?P<collection>[\w\s]+)", lower
         )
+        # Also support simpler patterns like "remove <field> from/for <collection>"
+        if not remove_field:
+            remove_field = re.search(
+                r"remove\s+(?P<field>[\w\s]+?)\s+(?:from|for|in)\s+(?P<collection>[\w\s]+)", lower
+            )
         if remove_field:
             field = _to_camel(_normalize_term(remove_field.group("field")))
             collection = _resolve_collection(schema, remove_field.group("collection"))
             if collection and field in schema.get(collection, {}):
                 schema[collection].pop(field, None)
+            # Also check nested fields (e.g., "zip" in "address")  
+            elif collection:
+                for key, value in schema.get(collection, {}).items():
+                    if isinstance(value, dict) and field in value:
+                        schema[collection][key].pop(field, None)
             entity_name = _title_case(_normalize_term(remove_field.group("collection")))
             if entity_name in attributes and field in attributes[entity_name]:
                 attributes[entity_name].remove(field)

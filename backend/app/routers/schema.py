@@ -94,3 +94,22 @@ async def get_schema(schema_id: str, current_user=Depends(get_current_user)):
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schema not found")
     return serialize_doc(doc)
+
+
+@router.delete("/{schema_id}")
+async def delete_schema(schema_id: str, current_user=Depends(get_current_user)):
+    object_id = to_object_id(schema_id)
+    if not object_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schema not found")
+    db = get_db()
+    result = await db.schemaHistory.delete_one({"_id": object_id, "userId": current_user.get("_id")})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schema not found")
+    return {"message": "Schema deleted successfully"}
+
+
+@router.delete("")
+async def delete_all_schemas(current_user=Depends(get_current_user)):
+    db = get_db()
+    result = await db.schemaHistory.delete_many({"userId": current_user.get("_id")})
+    return {"message": f"Deleted {result.deleted_count} schemas"}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import JsonPanel from "../components/JsonPanel";
@@ -7,54 +7,124 @@ import { getSchemaById, refineSchema } from "../api/schemas";
 const SchemaDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [schema, setSchema] = useState(null);
+
+  /* ================================
+     STATE
+  ================================== */
+
+  const [versionHistory, setVersionHistory] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [refinementText, setRefinementText] = useState("");
   const [refining, setRefining] = useState(false);
-  const [previousSchema, setPreviousSchema] = useState(null);
-  const [diffLines, setDiffLines] = useState([]);
 
-  useEffect(() => {
+  /* ================================
+     LOAD VERSION CHAIN
+  ================================== */
+
+  const loadVersions = useCallback(async () => {
     if (!id) return;
-    const load = async () => {
-      try {
-        const data = await getSchemaById(id);
-        setSchema(data);
-        if (data.parentId) {
-          const parent = await getSchemaById(data.parentId);
-          setPreviousSchema(parent);
-        } else {
-          setPreviousSchema(null);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load schema");
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await getSchemaById(id);
+
+      const chain = [data];
+      let current = data;
+
+      // Load full parent chain
+      while (current?.parentId) {
+        const parent = await getSchemaById(current.parentId);
+        chain.unshift(parent);
+        current = parent;
       }
-    };
-    load();
+
+      setVersionHistory(chain);
+      setCurrentIndex(chain.length - 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load schema");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  const buildDiff = (before, after, prefix = "") => {
+  useEffect(() => {
+    loadVersions();
+  }, [loadVersions]);
+
+  /* ================================
+     METRICS ENGINE
+  ================================== */
+
+  const computeMetrics = useCallback((schema) => {
+    let fieldCount = 0;
+    let maxDepth = 0;
+
+    const traverse = (obj, depth = 1) => {
+      if (!obj || typeof obj !== "object") return;
+      maxDepth = Math.max(maxDepth, depth);
+
+      for (const key in obj) {
+        fieldCount++;
+        if (typeof obj[key] === "object" && obj[key] !== null) {
+          traverse(obj[key], depth + 1);
+        }
+      }
+    };
+
+    traverse(schema);
+
+    const collectionCount = schema && typeof schema === "object" 
+      ? Object.keys(schema).length 
+      : 0;
+
+    return {
+      collectionCount,
+      fieldCount,
+      depth: maxDepth,
+    };
+  }, []);
+
+  /* ================================
+     DIFF ENGINE (cleaner format)
+  ================================== */
+
+  const buildDiff = useCallback((before, after, prefix = "") => {
     const lines = [];
-    const beforeKeys = before && typeof before === "object" ? Object.keys(before) : [];
-    const afterKeys = after && typeof after === "object" ? Object.keys(after) : [];
+
+    const beforeKeys =
+      before && typeof before === "object" ? Object.keys(before) : [];
+    const afterKeys =
+      after && typeof after === "object" ? Object.keys(after) : [];
+
     const keys = Array.from(new Set([...beforeKeys, ...afterKeys])).sort();
 
     for (const key of keys) {
       const path = prefix ? `${prefix}.${key}` : key;
-      const beforeVal = before ? before[key] : undefined;
-      const afterVal = after ? after[key] : undefined;
 
+      const beforeVal = before?.[key];
+      const afterVal = after?.[key];
+
+      // Added
       if (beforeVal === undefined && afterVal !== undefined) {
-        lines.push(`+ ${path}: ${JSON.stringify(afterVal)}`);
+        lines.push({ type: "added", text: `+ ${path}` });
         continue;
       }
+
+      // Removed
       if (beforeVal !== undefined && afterVal === undefined) {
-        lines.push(`- ${path}: ${JSON.stringify(beforeVal)}`);
+        lines.push({ type: "removed", text: `- ${path}` });
         continue;
       }
+
+      // Nested object
       if (
-        beforeVal &&
-        afterVal &&
+        beforeVal !== null &&
+        afterVal !== null &&
         typeof beforeVal === "object" &&
         typeof afterVal === "object" &&
         !Array.isArray(beforeVal) &&
@@ -63,38 +133,77 @@ const SchemaDetail = () => {
         lines.push(...buildDiff(beforeVal, afterVal, path));
         continue;
       }
+
+      // Modified
       if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
-        lines.push(`- ${path}: ${JSON.stringify(beforeVal)}`);
-        lines.push(`+ ${path}: ${JSON.stringify(afterVal)}`);
+        lines.push({ type: "modified", text: `~ ${path}` });
       }
     }
 
     return lines;
-  };
+  }, []);
 
-  useEffect(() => {
-    if (!previousSchema || !schema) {
-      setDiffLines([]);
-      return;
+  /* ================================
+     DERIVED STATE & METRICS
+  ================================== */
+
+  const currentSchema = versionHistory[currentIndex];
+  const previousSchema = currentIndex > 0 ? versionHistory[currentIndex - 1] : null;
+  const hasPrevious = currentIndex > 0;
+  const hasNext = currentIndex < versionHistory.length - 1;
+
+  const currentMetrics = useMemo(
+    () => computeMetrics(currentSchema?.result?.schema),
+    [currentSchema, computeMetrics]
+  );
+
+  const previousMetrics = useMemo(
+    () => computeMetrics(previousSchema?.result?.schema),
+    [previousSchema, computeMetrics]
+  );
+
+  const structuralWarning = useMemo(() => {
+    if (!previousMetrics || !currentMetrics || !hasPrevious) return null;
+
+    if (currentMetrics.fieldCount > previousMetrics.fieldCount * 2) {
+      return "⚠ Possible schema over-expansion detected.";
     }
-    const lines = buildDiff(previousSchema.result.schema, schema.result.schema);
-    setDiffLines(lines);
-  }, [previousSchema, schema]);
 
-  if (error) {
-    return <div className="data-card p-6 text-amber">{error}</div>;
-  }
+    if (currentMetrics.depth > previousMetrics.depth + 2) {
+      return "⚠ Sudden nesting depth increase detected.";
+    }
 
-  if (!schema) {
-    return <div className="data-card p-6">Loading schema...</div>;
-  }
+    return null;
+  }, [currentMetrics, previousMetrics, hasPrevious]);
+
+  const diffLines = useMemo(() => {
+    if (!previousSchema) return [];
+
+    const previous = previousSchema?.result?.schema;
+    const current = currentSchema?.result?.schema;
+
+    if (!previous || !current) return [];
+
+    return buildDiff(previous, current);
+  }, [currentSchema, previousSchema, buildDiff]);
+
+  /* ================================
+     REFINEMENT & EXPORT
+  ================================== */
 
   const handleRefine = async () => {
-    if (!id || !refinementText.trim()) return;
-    setRefining(true);
-    setError("");
+    if (!refinementText.trim()) return;
+
     try {
-      const refined = await refineSchema(id, refinementText, schema.workloadType);
+      setRefining(true);
+      setError("");
+
+      const refined = await refineSchema(
+        currentSchema._id,
+        refinementText,
+        currentSchema.workloadType
+      );
+
       navigate(`/schema/${refined._id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refinement failed");
@@ -103,77 +212,274 @@ const SchemaDetail = () => {
     }
   };
 
+  const handleExport = () => {
+    const blob = new Blob(
+      [JSON.stringify(currentSchema, null, 2)],
+      { type: "application/json" }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `schema-v${currentIndex + 1}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /* ================================
+     RENDER STATES
+  ================================== */
+
+  if (loading) {
+    return <div className="p-6">Loading schema...</div>;
+  }
+
+  if (error) {
+    return <div className="p-6 text-amber-600">{error}</div>;
+  }
+
+  if (!currentSchema) return null;
+
+  /* ================================
+     UI
+  ================================== */
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="font-display text-3xl">Schema Detail</h1>
-          <p className="text-slate mt-2">{schema.inputText}</p>
+    <div className="flex flex-col h-[calc(100vh-6rem)]">
+      {/* ============================
+          FIXED TOP BAR
+      ============================ */}
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-200">
+        <div className="flex items-center justify-between gap-4 px-6 py-3">
+          <Link to="/history" className="text-wave font-semibold text-sm">
+            ← Back
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-600">
+              V{currentIndex + 1} / {versionHistory.length}
+            </span>
+            <button
+              disabled={!hasPrevious}
+              onClick={() => setCurrentIndex((index) => index - 1)}
+              className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-sm"
+            >
+              ←
+            </button>
+            <button
+              disabled={!hasNext}
+              onClick={() => setCurrentIndex((index) => index + 1)}
+              className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-sm"
+            >
+              →
+            </button>
+          </div>
         </div>
-        <Link className="text-wave font-semibold" to="/history">Back to history</Link>
       </div>
 
-      <div className="grid gap-6">
+      {/* ============================
+          SCROLLABLE CONTENT
+      ============================ */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Original Requirement */}
+        {versionHistory.length > 0 && versionHistory[0]?.inputText && (
+          <div className="data-card p-5 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200">
+            <h3 className="text-purple-700 font-semibold text-sm uppercase tracking-wide mb-3">
+              📝 Original Requirement
+            </h3>
+            <p className="text-slate-700 text-sm leading-relaxed mb-3">
+              {versionHistory[0].inputText.split('\n').filter(line => !line.toLowerCase().startsWith('refinement:')).join(' ').trim()}
+            </p>
+            {versionHistory.length > 1 && (
+              <div className="mt-3 pt-3 border-t border-purple-200">
+                <div className="text-xs text-purple-600 uppercase tracking-wide mb-2">Refinement History</div>
+                <div className="space-y-1">
+                  {versionHistory.slice(1, currentIndex + 1).map((version, idx) => (
+                    version.refinementText && (
+                      <div key={idx} className="text-xs text-slate-600">
+                        <span className="font-medium text-purple-600">v{idx + 2}:</span> {version.refinementText}
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Schema Metrics Panel */}
+        <div className="data-card p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">
+              📊 Schema Metrics
+            </h3>
+            <button
+              onClick={handleExport}
+              className="text-xs text-wave hover:underline font-medium"
+            >
+              Export JSON ↓
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="bg-white/60 rounded-lg p-3">
+              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Collections</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-wave">{currentMetrics.collectionCount}</span>
+                {previousMetrics && currentMetrics.collectionCount !== previousMetrics.collectionCount && (
+                  <span className={`text-xs ${currentMetrics.collectionCount > previousMetrics.collectionCount ? 'text-green-600' : 'text-red-600'}`}>
+                    {currentMetrics.collectionCount > previousMetrics.collectionCount ? '+' : ''}{currentMetrics.collectionCount - previousMetrics.collectionCount}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3">
+              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Fields</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-wave">{currentMetrics.fieldCount}</span>
+                {previousMetrics && currentMetrics.fieldCount !== previousMetrics.fieldCount && (
+                  <span className={`text-xs ${currentMetrics.fieldCount > previousMetrics.fieldCount ? 'text-green-600' : 'text-red-600'}`}>
+                    {currentMetrics.fieldCount > previousMetrics.fieldCount ? '+' : ''}{currentMetrics.fieldCount - previousMetrics.fieldCount}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3">
+              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Max Depth</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-wave">{currentMetrics.depth}</span>
+                {previousMetrics && currentMetrics.depth !== previousMetrics.depth && (
+                  <span className={`text-xs ${currentMetrics.depth > previousMetrics.depth ? 'text-amber-600' : 'text-green-600'}`}>
+                    {currentMetrics.depth > previousMetrics.depth ? '+' : ''}{currentMetrics.depth - previousMetrics.depth}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3">
+              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Version</div>
+              <div className="text-2xl font-bold text-wave">{currentIndex + 1}</div>
+            </div>
+          </div>
+
+          {structuralWarning && (
+            <div className="mt-4 px-3 py-2 bg-amber-100 border border-amber-300 rounded-lg text-amber-800 text-sm">
+              {structuralWarning}
+            </div>
+          )}
+
+          {currentSchema?.refinementText && (
+            <div className="mt-4 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Last Refinement</div>
+              <div className="text-slate-700">{currentSchema.refinementText}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Schema JSON */}
         <div className="data-card p-5">
-          <h3 className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">Schema JSON</h3>
-          <pre className="mt-4 text-xs bg-mist/60 p-4 rounded-xl overflow-auto text-slate">
-            {JSON.stringify(schema.result.schema, null, 2)}
+          <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">
+            Schema JSON
+          </h3>
+
+          <pre className="mt-4 text-xs bg-mist/60 p-4 rounded-xl overflow-auto max-h-96">
+            {JSON.stringify(currentSchema?.result?.schema, null, 2)}
           </pre>
         </div>
+
+        {/* Decision Panels */}
         <div className="grid gap-6 md:grid-cols-2">
-          <JsonPanel title="Decisions" data={schema.result.decisions} />
-          <JsonPanel title="Explanations" data={schema.result.explanations} />
-          <JsonPanel title="Confidence" data={schema.result.confidence} />
-          <JsonPanel title="Indexes" data={schema.result.indexes} />
+          <JsonPanel title="Decisions" data={currentSchema?.result?.decisions} />
+          <JsonPanel
+            title="Explanations"
+            data={currentSchema?.result?.explanations}
+          />
+          <JsonPanel title="Confidence" data={currentSchema?.result?.confidence} />
+          <JsonPanel title="Indexes" data={currentSchema?.result?.indexes} />
         </div>
+
+        {/* Warnings */}
+        <div className="data-card p-6">
+          <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">
+            ⚠ Warnings
+          </h3>
+
+          <ul className="mt-3 text-sm space-y-2">
+            {(currentSchema?.result?.warnings ?? []).length === 0 && (
+              <li>No warnings detected.</li>
+            )}
+            {(currentSchema?.result?.warnings ?? []).map((warning) => (
+              <li key={warning}>• {warning}</li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Diff Section (cleaner format) */}
+        {hasPrevious && (
+          <div className="data-card p-6">
+            <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">
+              📊 Schema Diff
+            </h3>
+            <div className="mt-1 text-xs text-slate-500">
+              Changes from version {currentIndex} to version {currentIndex + 1}
+            </div>
+
+            <div className="mt-4 text-xs bg-mist/60 p-4 rounded-xl max-h-80 overflow-auto font-mono">
+              {diffLines.length === 0 ? (
+                <div className="text-slate-500">
+                  No structural changes detected between versions.
+                  {currentSchema?.refinementText && (
+                    <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-amber-800">
+                      <strong>Note:</strong> A refinement was requested ("{currentSchema.refinementText}") 
+                      but no schema structure changes were applied. The backend may need to process this refinement differently.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {diffLines.map((line, index) => (
+                    <div
+                      key={`${line.type}-${index}`}
+                      className={
+                        line.type === "added"
+                          ? "text-green-600 font-semibold"
+                          : line.type === "removed"
+                          ? "text-red-600"
+                          : "text-amber-600"
+                      }
+                    >
+                      {line.text}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      <section className="data-card p-6 space-y-4">
-        <div>
-          <h3 className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">Refine schema</h3>
-          <p className="text-sm text-slate mt-2">
-            Add a new instruction to evolve this schema. Example: “Add exam attempts and audit logs.”
-          </p>
-        </div>
+      {/* ============================
+          FIXED REFINE SECTION
+      ============================ */}
+      <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/95 backdrop-blur p-4 space-y-3 shadow-lg">
+        <h3 className="text-wave font-semibold text-xs uppercase tracking-wide">
+          🔄 Refine Schema
+        </h3>
+
         <textarea
-          className="w-full min-h-[120px] rounded-2xl border border-slate/20 px-4 py-3"
+          className="w-full min-h-[56px] rounded-xl border px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-wave/50"
           placeholder="Describe the changes you want..."
           value={refinementText}
           onChange={(event) => setRefinementText(event.target.value)}
         />
-        <div className="flex items-center justify-end">
+
+        <div className="flex justify-end">
           <button
-            className="rounded-full bg-wave text-white px-6 py-2 font-semibold shadow-soft"
+            disabled={!refinementText.trim() || refining}
             onClick={handleRefine}
-            disabled={refining || !refinementText.trim()}
+            className="rounded-full bg-wave text-white px-5 py-2 text-sm font-semibold disabled:opacity-50 hover:bg-wave/90 transition"
           >
             {refining ? "Refining..." : "Apply refinement"}
           </button>
         </div>
-      </section>
-      <div className="data-card p-6">
-        <h3 className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">Warnings</h3>
-        <ul className="mt-3 text-sm text-slate space-y-2">
-          {schema.result.warnings.length === 0 && <li>No warnings detected.</li>}
-          {schema.result.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
-          ))}
-        </ul>
       </div>
-
-      {previousSchema && (
-        <section className="data-card p-6 space-y-4">
-          <div>
-            <h3 className="text-sm uppercase tracking-[0.3em] text-wave font-semibold">Schema diff</h3>
-            <p className="text-sm text-slate mt-2">
-              Comparing version {previousSchema.version ?? 1} with version {schema.version ?? 1}.
-            </p>
-          </div>
-          <pre className="text-xs bg-mist/60 p-4 rounded-xl overflow-auto text-slate">
-            {diffLines.length ? diffLines.join("\n") : "No structural changes detected."}
-          </pre>
-        </section>
-      )}
     </div>
   );
 };
