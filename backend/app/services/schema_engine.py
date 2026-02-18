@@ -903,7 +903,7 @@ Without this field, the response is considered INVALID.
 RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
 
 {{
-  "refinementSummary": "⚠️ THIS MUST BE THE FIRST LINE OF YOUR JSON - Write ONE clear sentence: 'Successfully [what you did] reducing [metric] from X to Y' OR 'Failed to achieve [goal] because [reason]. Current [metric]=X, target was Y.' Include specific before/after numbers.",
+  "refinementSummary": "⚠️ MANDATORY - ONE detailed sentence with SPECIFIC ACTIONS and NUMBERS. Format: 'Successfully [specific action taken] by [what you changed], reducing [metric] from X to Y and [another metric] from A to B.' OR 'Failed/Partially achieved [goal]: [specific reason]. Current [metric]=X (target was Y).' NEVER just say 'Applied refinement: [user request]' - that's too generic!",
   "description": "Brief description of what was changed",
   "schema": {{"collection_name": {{"field": "Type"}}}},
   "entities": ["list", "of", "collections"],
@@ -920,38 +920,47 @@ RESPOND WITH COMPLETE JSON ONLY (no markdown, no extra text):
   "warnings": ["Specific warning with context", "If goal not met: Warning about remaining issues"],
   "explanations": {{
     "Key Topic": "Detailed explanation of why this design choice",
-    "refinement": "Explanation of what changed and why",
-    "Alternatives": "⚠️ ONLY include this if new warnings were added or refinement failed - provide ONE actionable suggestion to reduce warnings or improve the schema (e.g., 'To reduce data inconsistency warnings, add a background sync job' or 'Consider moving embedded arrays to separate collections to reduce depth')"
+    "refinement": "Specific detail about what changed (e.g., 'Removed products[] array from orders and orders[] array from products, eliminated 17 redundant fields')",
+    "Alternatives": "⚠️ MANDATORY if new warnings added - ONE actionable solution (NOT trade-off explanation). Example: 'To resolve data inconsistency warnings, use MongoDB change streams or application-level event handlers to sync updates between related collections.'"
   }},
   "confidence": {{"collection_name": 85}},
   "accessPattern": "{workload_type}"
 }}
 
-EXAMPLE refinementSummary SUCCESS:
-"Successfully reduced max depth from 5 to 2 by flattening address (street/city/state) and converting all enum objects to direct string fields. Schema is now optimized with minimal nesting."
+EXAMPLE refinementSummary - GOOD:
+"Successfully normalized schema by removing denormalized product and order arrays from collections, reducing total fields from 108 to 91 and depth from 4 to 3."
+"Flattened all nested enum objects (role.type.type → role), reducing max depth from 5 to 3 and simplifying 15 field structures across 9 collections."
+
+EXAMPLE refinementSummary - BAD (too generic):
+"Applied refinement: do normalizing" ❌
+"Successfully normalized the schema" ❌  
 
 EXAMPLE refinementSummary PARTIAL SUCCESS:
-"Partially achieved: Reduced depth from 5 to 3 by flattening enums, but depth 2 requires moving embedded product arrays to separate cartItems collection. Current depth=3 (due to cart.products[], orders.products[])."
+"Partially achieved depth target: Reduced from 5 to 3 by flattening enums and address fields, but depth 2 impossible due to cartItems array structure (array of objects = depth 3)."
 
 EXAMPLE refinementSummary FAILURE:
-"Failed to achieve max depth 2 (requested) - current depth remains at 4. Simplified all ObjectId refs to String but cartItems array structure inherently adds depth. Achieving depth 2 requires removing all embedded arrays and fully denormalizing data."
+"Failed to achieve max depth 2 (current: 4). Converted all ObjectId to String but embedded arrays (cartItems, orderItems) inherently require depth 3+. Would need full denormalization to separate collections."
 
-WHEN TO ADD "Alternatives" FIELD:
-- If new warnings were added → Suggest how to resolve them
-- If refinement partially failed → Suggest next step to complete it
-- If refinement created trade-offs → Suggest how to mitigate them
-- DO NOT just restate the problem - provide an actionable next step
+⚠️ MANDATORY "Alternatives" FIELD WHEN:
+- New warnings added → MUST suggest how to resolve them (e.g., "To prevent data inconsistency between orders and orderItems, implement MongoDB transactions or change streams for automatic synchronization")
+- Refinement partially failed → MUST suggest next step to complete it
+- Refinement created trade-offs → MUST suggest how to mitigate them
+- DO NOT just restate the problem - provide an actionable next step that reduces warnings
 
-EXAMPLE Alternatives:
-"To maintain data consistency with denormalized data, implement update triggers or use MongoDB transactions to sync changes across orders and products collections."
-"To achieve depth 2, move all embedded arrays (cartItems, orderItems) to separate collections with simple string references."
+EXAMPLE Alternatives GOOD:
+"To prevent data inconsistency warnings, implement MongoDB change streams to automatically sync updates between orders and orderItems collections, or use multi-document transactions."
+"To reduce depth to 2, convert cartItemIds array-of-strings into a separate cartItems collection with userId reference."
 
-CRITICAL RULES:
-1. refinementSummary MUST be the FIRST field in your JSON response - this is NON-NEGOTIABLE
-2. Write it as ONE clear sentence explaining what you achieved vs. what was requested
-3. Include specific numbers (depth/fields/collections before→after)
-4. If refinement failed or created new warnings, ADD "Alternatives" field with actionable next step
-5. "Alternatives" should help REDUCE warnings, not just explain trade-offs"""
+EXAMPLE Alternatives BAD (too generic):
+"Consider using transactions" ❌
+"May need to optimize" ❌
+
+🚨 CRITICAL RULES:
+1. refinementSummary MUST be FIRST field with SPECIFIC ACTIONS and NUMBERS (not just "Applied refinement: [request]")
+2. If new warnings added, Alternatives field is MANDATORY with actionable solution
+3. Include before→after metrics (depth, fields, collections)
+4. Be honest about success/partial/failure
+5. Alternatives must help REDUCE warnings, not explain them"""
 
     try:
         response = _groq.chat.completions.create(
