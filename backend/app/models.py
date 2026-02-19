@@ -78,6 +78,37 @@ class AgentChatRequest(BaseModel):
     schema_id: Optional[str] = Field(default=None, alias="schemaId")
 
 
+class SchemaCompareRequest(BaseModel):
+    """Request for schema comparison endpoint."""
+    model_config = ConfigDict(populate_by_name=True)
+    
+    schema_id_1: str = Field(alias="schemaId1")
+    schema_id_2: str = Field(alias="schemaId2")
+    analysis_text: str = Field(default="", alias="analysisText")
+
+
+class GenerateAndCompareRequest(BaseModel):
+    """Request for generating and comparing two schemas."""
+    model_config = ConfigDict(populate_by_name=True)
+    
+    input_text_1: str = Field(alias="inputText1")
+    workload_type_1: str = Field(default="balanced", alias="workloadType1")
+    input_text_2: str = Field(alias="inputText2")
+    workload_type_2: str = Field(default="balanced", alias="workloadType2")
+    analysis_text: str = Field(default="", alias="analysisText")
+
+
+class CompareModelsRequest(BaseModel):
+    """Request for comparing two different AI models on same requirement."""
+    model_config = ConfigDict(populate_by_name=True)
+    
+    requirement: str
+    workload_type: str = Field(default="balanced", alias="workloadType")
+    model_1: str = Field(default="claude", alias="model1")
+    model_2: str = Field(default="gpt", alias="model2")
+    analysis_text: str = Field(default="", alias="analysisText")
+
+
 class AgentChatResponse(BaseModel):
     """Response from agent chat endpoint."""
     model_config = ConfigDict(populate_by_name=True)

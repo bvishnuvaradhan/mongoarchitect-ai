@@ -19,6 +19,118 @@ _groq = Groq(api_key=settings.groq_api_key)
 MODEL = "llama-3.3-70b-versatile"
 
 
+# ============================
+# HACKATHON INTELLIGENCE LAYER
+# ============================
+
+CARDINALITY_HINTS = {
+    "one_to_one": ["profile", "detail", "setting"],
+    "one_to_few": ["address", "phone", "payment method"],
+    "one_to_many": ["order", "exam", "attendance", "appointment", "log"],
+    "many_to_many": ["tag", "course", "store", "product", "student"],
+}
+
+TEMPORAL_KEYWORDS = [
+    "history",
+    "log",
+    "activity",
+    "attendance",
+    "transaction",
+    "event",
+    "audit",
+]
+
+
+def detect_cardinality(text: str, relation: str) -> str:
+    text = text.lower()
+    for card, hints in CARDINALITY_HINTS.items():
+        if any(h in text for h in hints):
+            return card
+    if "many" in text or "multiple" in text:
+        return "many_to_many"
+    return "one_to_many"
+
+
+def detect_temporal_data(relation: str) -> bool:
+    return any(word in relation.lower() for word in TEMPORAL_KEYWORDS)
+
+
+def estimate_doc_growth(relation: str) -> str:
+    if "history" in relation.lower():
+        return "unbounded"
+    if "many" in relation.lower():
+        return "large_array"
+    return "bounded"
+
+
+def simulate_query_cost(choice: str) -> Dict[str, int]:
+    return {
+        "embed": {"read_cost": 1, "write_cost": 4, "join_cost": 0},
+        "reference": {"read_cost": 3, "write_cost": 1, "join_cost": 2},
+    }[choice]
+
+
+def suggest_sharding(entities: List[str]) -> List[Dict[str, str]]:
+    sharding = []
+    if "Order" in entities:
+        sharding.append({
+            "collection": "orders",
+            "shardKey": "userId",
+            "reason": "High write throughput expected",
+        })
+    if "Transaction" in entities:
+        sharding.append({
+            "collection": "transactions",
+            "shardKey": "accountId",
+            "reason": "Time-series scaling",
+        })
+    return sharding
+
+
+def future_risk_score(decisions: Dict[str, str], growth_map: Dict[str, str]) -> int:
+    score = 0
+    for relation, choice in decisions.items():
+        if choice == "embed" and growth_map.get(relation) != "bounded":
+            score += 15
+        elif choice == "reference":
+            score += 5
+    return min(score, 100)
+
+
+def performance_index(query_costs: Dict[str, Dict[str, int]]) -> int:
+    read = sum(c["read_cost"] for c in query_costs.values())
+    write = sum(c["write_cost"] for c in query_costs.values())
+    join = sum(c["join_cost"] for c in query_costs.values())
+    return max(0, 100 - (read + write + join))
+
+
+def advanced_decision_engine(text: str, relationships: List[str]) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, Dict[str, int]]]:
+    decisions: Dict[str, str] = {}
+    growth_map: Dict[str, str] = {}
+    query_costs: Dict[str, Dict[str, int]] = {}
+
+    for rel in relationships:
+        cardinality = detect_cardinality(text, rel)
+        temporal = detect_temporal_data(rel)
+        growth = estimate_doc_growth(rel)
+
+        growth_map[rel] = growth
+
+        if temporal:
+            choice = "reference"
+        elif cardinality in ["one_to_one", "one_to_few"]:
+            choice = "embed"
+        elif cardinality == "many_to_many":
+            choice = "reference"
+        else:
+            choice = "reference"
+
+        decisions[rel] = choice
+        query_costs[rel] = simulate_query_cost(choice)
+
+    return decisions, growth_map, query_costs
+
+
 ENTITY_TEMPLATES: Dict[str, List[str]] = {
     "User": ["name", "email", "createdAt"],
     "Order": ["total", "status", "createdAt"],
@@ -765,6 +877,14 @@ Example response format:
         relationships_obj = _normalize_relationships(relationships_obj, decisions_obj)
         version_info = _build_schema_version()
 
+        relationships_list = list(relationships_obj.keys())
+        decisions, growth_map, query_costs = advanced_decision_engine(
+            input_text, relationships_list
+        )
+        risk = future_risk_score(decisions, growth_map)
+        performance = performance_index(query_costs)
+        sharding = suggest_sharding(result.get("entities", []))
+
         return {
             **version_info,
             "entities": result.get("entities", []),
@@ -773,6 +893,11 @@ Example response format:
             "decisions": decisions_obj,  # Without nested relationships
             "whyNot": {},
             "confidence": {entity: 95 for entity in result.get("entities", [])},
+            "futureRiskScore": risk,
+            "performanceIndex": performance,
+            "queryCostAnalysis": query_costs,
+            "growthRiskMap": growth_map,
+            "autoSharding": sharding,
             "schema": normalized_schema,
             "indexes": result.get("indexes", []),
             "warnings": result.get("warnings", []),
@@ -789,10 +914,13 @@ def _generate_schema_fallback(input_text: str, workload_type: str, error: str) -
     """Fallback rule-based schema generation if Groq fails."""
     entities = _extract_entities(input_text)
     relationships = _relationships(input_text, entities)
-    decisions = _decide_embed_or_reference(input_text, workload_type, relationships)
+    decisions, growth_map, query_costs = advanced_decision_engine(input_text, relationships)
     relationships_obj = _normalize_relationships(relationships, decisions)
     normalized_schema = _normalize_schema(_schema(entities, decisions))
     version_info = _build_schema_version()
+    risk = future_risk_score(decisions, growth_map)
+    performance = performance_index(query_costs)
+    sharding = suggest_sharding(entities)
     return {
         **version_info,
         "entities": entities,
@@ -801,6 +929,11 @@ def _generate_schema_fallback(input_text: str, workload_type: str, error: str) -
         "decisions": decisions,
         "whyNot": _why_not(decisions),
         "confidence": _confidence(decisions),
+        "futureRiskScore": risk,
+        "performanceIndex": performance,
+        "queryCostAnalysis": query_costs,
+        "growthRiskMap": growth_map,
+        "autoSharding": sharding,
         "schema": normalized_schema,
         "indexes": _indexes(decisions),
         "warnings": _warnings(input_text, decisions) + [f"Fallback NLP mode (Groq error: {error})"],
@@ -880,21 +1013,55 @@ Respond with COMPLETE JSON only.
 FIRST FIELD MUST be "refinementSummary".
 """
 
-    try:
+    strict_prompt = f"""
+You are an expert MongoDB schema architect.
+
+CURRENT SCHEMA:
+{json.dumps(old_schema, indent=2)}
+
+USER REFINEMENT REQUEST:
+{refinement_text}
+
+Workload Type: {workload_type}
+
+Return ONLY valid JSON with the following top-level fields:
+- refinementSummary (string, first field)
+- schema (object, REQUIRED)
+- relationships (object or list)
+- decisions (object)
+- indexes (array)
+- warnings (array)
+- explanations (object)
+- confidence (object)
+
+Do NOT include any text outside the JSON.
+"""
+
+    def _run_refinement_llm(prompt_text: str) -> Dict[str, Any]:
         response = _groq.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": prompt_text}],
             max_tokens=3500,
-            temperature=0.15
+            temperature=0.15,
         )
 
         raw = response.choices[0].message.content.strip()
         result = _extract_valid_json(raw)
+        if not isinstance(result, dict):
+            raise ValueError("LLM response is not a JSON object")
+        return result
+
+    try:
+        result = _run_refinement_llm(prompt)
+
+        if "schema" not in result:
+            result = _run_refinement_llm(strict_prompt)
 
         if "schema" not in result:
             raise ValueError("LLM response missing schema")
 
         _apply_force_embed_from_refinement(refinement_text, result)
+        _apply_force_add_collections_from_refinement(refinement_text, result)
 
         new_schema = _normalize_schema(result["schema"])
         new_metrics = _schema_metrics(new_schema)
@@ -912,6 +1079,14 @@ FIRST FIELD MUST be "refinementSummary".
         relationships_obj = _normalize_relationships(relationships_obj, decisions_obj)
         version_info = _build_schema_version(base_result)
 
+        relationships_list = list(relationships_obj.keys())
+        decisions_ai, growth_map, query_costs = advanced_decision_engine(
+            refinement_text, relationships_list
+        )
+        risk = future_risk_score(decisions_ai, growth_map)
+        performance = performance_index(query_costs)
+        sharding = suggest_sharding(result.get("entities", []))
+
         return {
             **version_info,
             "refinementSummary": summary,
@@ -923,6 +1098,11 @@ FIRST FIELD MUST be "refinementSummary".
             "warnings": result.get("warnings", []),
             "explanations": result.get("explanations", {}),
             "confidence": result.get("confidence", {}),
+            "futureRiskScore": risk,
+            "performanceIndex": performance,
+            "queryCostAnalysis": query_costs,
+            "growthRiskMap": growth_map,
+            "autoSharding": sharding,
             "accessPattern": workload_type,
             "metrics": new_metrics,
             "diff": diff,
@@ -931,6 +1111,7 @@ FIRST FIELD MUST be "refinementSummary".
     except Exception as e:
         fallback_result = copy.deepcopy(base_result)
         _apply_force_embed_from_refinement(refinement_text, fallback_result)
+        _apply_force_add_collections_from_refinement(refinement_text, fallback_result)
         fallback_schema = _normalize_schema(fallback_result.get("schema", old_schema))
         fallback_metrics = _schema_metrics(fallback_schema)
         fallback_diff = _diff_schema(old_schema, fallback_schema)
@@ -942,13 +1123,21 @@ FIRST FIELD MUST be "refinementSummary".
             fallback_changed,
         )
 
-        warnings = ["LLM refinement failed - deterministic fallback"]
+        warnings = [f"LLM refinement failed - deterministic fallback: {str(e)}"]
         warnings.extend(fallback_result.get("warnings", []))
         relationships_obj = _normalize_relationships(
             fallback_result.get("relationships", base_result.get("relationships", [])),
             fallback_result.get("decisions", base_result.get("decisions", {})),
         )
         version_info = _build_schema_version(base_result)
+
+        relationships_list = list(relationships_obj.keys())
+        decisions_ai, growth_map, query_costs = advanced_decision_engine(
+            refinement_text, relationships_list
+        )
+        risk = future_risk_score(decisions_ai, growth_map)
+        performance = performance_index(query_costs)
+        sharding = suggest_sharding(fallback_result.get("entities", base_result.get("entities", [])))
 
         return {
             **version_info,
@@ -961,6 +1150,11 @@ FIRST FIELD MUST be "refinementSummary".
             "warnings": list(dict.fromkeys(warnings)),
             "explanations": fallback_result.get("explanations", base_result.get("explanations", {})),
             "confidence": fallback_result.get("confidence", base_result.get("confidence", {})),
+            "futureRiskScore": risk,
+            "performanceIndex": performance,
+            "queryCostAnalysis": query_costs,
+            "growthRiskMap": growth_map,
+            "autoSharding": sharding,
             "accessPattern": workload_type,
             "metrics": fallback_metrics,
             "diff": fallback_diff,
@@ -1344,6 +1538,62 @@ def _apply_force_embed_from_refinement(refinement_text: str, result: Dict[str, A
 
     result["schema"] = schema
     return True
+
+
+def _apply_force_add_collections_from_refinement(refinement_text: str, result: Dict[str, Any]) -> bool:
+    """Add collections when refinement explicitly requests new collections."""
+    if not refinement_text or not isinstance(result, dict):
+        return False
+
+    schema = result.get("schema")
+    if not isinstance(schema, dict):
+        return False
+
+    text = refinement_text.lower()
+    patterns = [
+        r"add\s+collections?\s+(?:named\s+)?(?P<names>[\w\s,]+)",
+        r"add\s+collections?\s+for\s+(?P<names>[\w\s,]+)",
+        r"add\s+(?P<names>[\w\s,]+?)\s+collections?",
+        r"add\s+(?P<names>[\w\s,]+)",
+    ]
+
+    names: List[str] = []
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        raw_names = match.group("names")
+        if not raw_names:
+            continue
+        tokens = re.split(r",|\band\b", raw_names)
+        for token in tokens:
+            cleaned = token.strip()
+            if not cleaned or cleaned in {"collection", "collections", "entity", "entities", "table", "tables", "also"}:
+                continue
+            names.append(cleaned)
+        if names:
+            break
+
+    if not names:
+        return False
+
+    entities = result.get("entities", [])
+    attributes = result.get("attributes", {})
+    decisions = result.get("decisions", {})
+
+    changed = False
+    for name in names:
+        collection = _ensure_collection(schema, entities, attributes, name)
+        if isinstance(decisions, dict):
+            decisions.setdefault(collection, "→ SEPARATE COLLECTION - Requested in refinement")
+        changed = True
+
+    result["schema"] = schema
+    result["entities"] = entities
+    result["attributes"] = attributes
+    if isinstance(decisions, dict):
+        result["decisions"] = decisions
+    return changed
 
 
 def _is_bad_summary(summary: Any, refinement_text: str, schema_changed: bool) -> bool:

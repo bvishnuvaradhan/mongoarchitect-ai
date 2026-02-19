@@ -416,6 +416,37 @@ const SchemaDetail = () => {
           )}
         </div>
 
+        {/* Advanced Analytics */}
+        <div className="data-card p-5 bg-gradient-to-br from-wave/5 to-amber/10 border border-wave/20">
+          <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">📈 Advanced Analytics</h3>
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Future Risk</div>
+              <div className="text-2xl font-bold text-wave">
+                {currentSchema?.result?.futureRiskScore ?? "N/A"}
+              </div>
+            </div>
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Performance</div>
+              <div className="text-2xl font-bold text-wave">
+                {currentSchema?.result?.performanceIndex ?? "N/A"}
+              </div>
+            </div>
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Growth Map</div>
+              <div className="text-2xl font-bold text-wave">
+                {currentSchema?.result?.growthRiskMap ? Object.keys(currentSchema.result.growthRiskMap).length : "N/A"}
+              </div>
+            </div>
+            <div className="bg-blush rounded-lg p-3 border border-wave/20">
+              <div className="text-xs text-slate uppercase tracking-wide mb-1">Sharding Hints</div>
+              <div className="text-2xl font-bold text-wave">
+                {currentSchema?.result?.autoSharding ? currentSchema.result.autoSharding.length : "N/A"}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Schema JSON */}
         <div className="data-card p-5">
           <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">
@@ -436,6 +467,9 @@ const SchemaDetail = () => {
           />
           <JsonPanel title="Confidence" data={currentSchema?.result?.confidence} />
           <JsonPanel title="Indexes" data={currentSchema?.result?.indexes} />
+          <JsonPanel title="Growth Risk Map" data={currentSchema?.result?.growthRiskMap} />
+          <JsonPanel title="Query Cost Analysis" data={currentSchema?.result?.queryCostAnalysis} />
+          <JsonPanel title="Auto Sharding" data={currentSchema?.result?.autoSharding} />
         </div>
 
         {/* Warnings */}

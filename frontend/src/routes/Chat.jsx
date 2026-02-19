@@ -287,6 +287,7 @@ export default function Chat() {
                 { id: "explanations", label: "Explanations" },
                 { id: "warnings", label: "Warnings" },
                 { id: "indexes", label: "Indexes" },
+                { id: "analytics", label: "Analytics" },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -417,6 +418,47 @@ export default function Chat() {
                   ) : (
                     <p className="text-xs text-slate">No indexes recommended</p>
                   )}
+                </div>
+              )}
+
+              {activeTab === "analytics" && (
+                <div>
+                  <h3 className="text-xs font-bold text-ink mb-2">Advanced Analytics</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-blush p-2 rounded border border-wave/20">
+                      <div className="text-slate uppercase tracking-wide">Future Risk</div>
+                      <div className="text-ink font-semibold mt-1">
+                        {schema.futureRiskScore ?? "N/A"}
+                      </div>
+                    </div>
+                    <div className="bg-blush p-2 rounded border border-wave/20">
+                      <div className="text-slate uppercase tracking-wide">Performance</div>
+                      <div className="text-ink font-semibold mt-1">
+                        {schema.performanceIndex ?? "N/A"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    <div className="bg-wave/10 p-2 rounded border border-wave/30">
+                      <p className="text-xs font-semibold text-wave">Growth Risk Map</p>
+                      <pre className="text-xs text-ink mt-1 whitespace-pre-wrap">
+                        {JSON.stringify(schema.growthRiskMap || {}, null, 2)}
+                      </pre>
+                    </div>
+                    <div className="bg-wave/10 p-2 rounded border border-wave/30">
+                      <p className="text-xs font-semibold text-wave">Query Cost Analysis</p>
+                      <pre className="text-xs text-ink mt-1 whitespace-pre-wrap">
+                        {JSON.stringify(schema.queryCostAnalysis || {}, null, 2)}
+                      </pre>
+                    </div>
+                    <div className="bg-wave/10 p-2 rounded border border-wave/30">
+                      <p className="text-xs font-semibold text-wave">Auto Sharding</p>
+                      <pre className="text-xs text-ink mt-1 whitespace-pre-wrap">
+                        {JSON.stringify(schema.autoSharding || [], null, 2)}
+                      </pre>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
