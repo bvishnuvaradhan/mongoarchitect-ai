@@ -17,3 +17,10 @@ export const login = async (email, password) => {
 export const getMe = async () => {
   return apiFetch("/me");
 };
+
+export const changePassword = async (currentPassword, newPassword) => {
+  return apiFetch("/me/password", {
+    method: "PUT",
+    json: { currentPassword, newPassword }
+  });
+};

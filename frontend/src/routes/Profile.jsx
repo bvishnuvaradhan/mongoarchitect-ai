@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../state/auth";
 import { getHistory } from "../api/schemas";
+import { changePassword } from "../api/auth";
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -10,6 +11,15 @@ const Profile = () => {
   const [stats, setStats] = useState(null);
   const [recentSchemas, setRecentSchemas] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Password change state
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -51,11 +61,11 @@ const Profile = () => {
           favoriteModel
         });
 
-        // Get recent 5 schemas
+        // Get recent 3 schemas
         const sorted = [...history].sort(
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
-        setRecentSchemas(sorted.slice(0, 5));
+        setRecentSchemas(sorted.slice(0, 3));
       } catch (err) {
         console.error("Failed to load profile data:", err);
       } finally {
@@ -68,6 +78,39 @@ const Profile = () => {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handlePasswordChange = async (event) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setPasswordSuccess("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setShowPasswordForm(false);
+        setPasswordSuccess("");
+      }, 2000);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -83,7 +126,61 @@ const Profile = () => {
   const formatRelativeTime = (dateStr) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
-    const now = new Date();
+    co  
+        <div className="pt-4 border-t border-slate/20">
+          <button
+            onClick={() => setShowPasswordForm(!showPasswordForm)}
+            className="text-primary hover:text-primary/80 font-medium transition-colors"
+          >
+            {showPasswordForm ? "Cancel" : "Change Password"}
+          </button>
+          
+          {showPasswordForm && (
+            <form onSubmit={handlePasswordChange} className="mt-4 space-y-3">
+              <input
+                type="password"
+                placeholder="Current Password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full rounded-lg border border-slate/20 px-4 py-2"
+                required
+              />
+              <input
+                type="password"
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full rounded-lg border border-slate/20 px-4 py-2"
+                required
+                minLength={8}
+              />
+              <input
+                type="password"
+                placeholder="Confirm New Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-lg border border-slate/20 px-4 py-2"
+                required
+              />
+              
+              {passwordError && (
+                <p className="text-sm text-red-600">{passwordError}</p>
+              )}
+              {passwordSuccess && (
+                <p className="text-sm text-green-600">{passwordSuccess}</p>
+              )}
+              
+              <button
+                type="submit"
+                disabled={passwordLoading}
+                className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {passwordLoading ? "Changing..." : "Change Password"}
+              </button>
+            </form>
+          )}
+        </div>
+      nst now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
@@ -167,18 +264,18 @@ const Profile = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-ink truncate">
-                      {schema.prompt?.substring(0, 60) || "Untitled Schema"}
-                      {schema.prompt?.length > 60 && "..."}
+                      {(() => {
+                        const text = schema.inputText || "Untitled Schema";
+                        // Extract only the first line before any "Workload Type:" or "Refinement:" markers
+                        const firstLine = text.split('\n')[0];
+                        const cleanText = firstLine.split(/Workload Type:|Refinement:/)[0].trim();
+                        const display = cleanText.substring(0, 60);
+                        return display + (cleanText.length > 60 ? "..." : "");
+                      })()}
                     </p>
-                    <p className="text-sm text-slate mt-1">
-                      <span className="capitalize">{schema.workloadType || "general"}</span>
-                      {schema.model && (
-                        <>
-                          {" · "}
-                          <span className="capitalize">{schema.model}</span>
-                        </>
-                      )}
-                    </p>
+                    {schema.model && (
+                      <p className="text-sm text-slate mt-1 capitalize">{schema.model}</p>
+                    )}
                   </div>
                   <p className="text-sm text-slate whitespace-nowrap">
                     {formatRelativeTime(schema.createdAt)}

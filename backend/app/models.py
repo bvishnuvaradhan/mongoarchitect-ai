@@ -11,6 +11,11 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=72)
 
 
+class ChangePassword(BaseModel):
+    current_password: str = Field(alias="currentPassword")
+    new_password: str = Field(min_length=8, max_length=72, alias="newPassword")
+
+
 class UserPublic(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
