@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import JsonPanel from "../components/JsonPanel";
 import { getSchemaById, refineSchema } from "../api/schemas";
+import { validateAtlasConnection, exportToAtlas } from "../api/export";
 
 const SchemaDetail = () => {
   const { id } = useParams();
@@ -19,6 +20,15 @@ const SchemaDetail = () => {
 
   const [refinementText, setRefinementText] = useState("");
   const [refining, setRefining] = useState(false);
+
+  // Export to Atlas state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [connectionString, setConnectionString] = useState("");
+  const [databaseName, setDatabaseName] = useState("");
+  const [validating, setValidating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const [exportSuccess, setExportSuccess] = useState("");
 
   /* ================================
      LOAD VERSION CHAIN
@@ -238,6 +248,47 @@ const SchemaDetail = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportToAtlas = async (e) => {
+    e.preventDefault();
+    setExportError("");
+    setExportSuccess("");
+
+    if (!connectionString.trim() || !databaseName.trim()) {
+      setExportError("Connection string and database name are required");
+      return;
+    }
+
+    // Validate connection first
+    setValidating(true);
+    try {
+      await validateAtlasConnection(connectionString, databaseName);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Connection validation failed");
+      setValidating(false);
+      return;
+    }
+    setValidating(false);
+
+    // Export schema
+    setExporting(true);
+    try {
+      const result = await exportToAtlas(currentSchema._id, connectionString, databaseName);
+      setExportSuccess(
+        `Successfully exported ${result.collections?.length || 0} collections to ${databaseName}`
+      );
+      setTimeout(() => {
+        setShowExportModal(false);
+        setConnectionString("");
+        setDatabaseName("");
+        setExportSuccess("");
+      }, 2000);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   /* ================================
      RENDER STATES
   ================================== */
@@ -324,12 +375,20 @@ const SchemaDetail = () => {
             <h3 className="text-wave font-semibold text-sm uppercase tracking-wide">
               📊 Schema Metrics
             </h3>
-            <button
-              onClick={handleExport}
-              className="text-xs text-wave hover:underline font-medium"
-            >
-              Export JSON ↓
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleExport}
+                className="text-xs text-wave hover:underline font-medium"
+              >
+                Export JSON ↓
+              </button>
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                Export to Atlas →
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -600,6 +659,111 @@ const SchemaDetail = () => {
           </button>
         </div>
       </div>
+
+      {/* Export to Atlas Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="data-card w-full max-w-lg p-6 m-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl text-wave">Export to MongoDB Atlas</h2>
+              <button
+                onClick={() => {
+                  setShowExportModal(false);
+                  setExportError("");
+                  setExportSuccess("");
+                  setConnectionString("");
+                  setDatabaseName("");
+                }}
+                className="text-slate hover:text-ink transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-sm text-slate mb-4">
+              Deploy this schema directly to your MongoDB Atlas cluster. Collections will be created with validation rules and recommended indexes.
+            </p>
+
+            <form onSubmit={handleExportToAtlas} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-ink mb-2">
+                  Connection String
+                </label>
+                <input
+                  type="text"
+                  placeholder="mongodb+srv://username:password@cluster.mongodb.net/"
+                  value={connectionString}
+                  onChange={(e) => setConnectionString(e.target.value)}
+                  className="w-full rounded-lg border border-slate/20 px-4 py-2 text-sm font-mono"
+                  required
+                />
+                <p className="text-xs text-slate mt-1">
+                  Your MongoDB Atlas connection string (not stored)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-ink mb-2">
+                  Database Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="my_database"
+                  value={databaseName}
+                  onChange={(e) => setDatabaseName(e.target.value)}
+                  className="w-full rounded-lg border border-slate/20 px-4 py-2 text-sm"
+                  required
+                />
+                <p className="text-xs text-slate mt-1">
+                  Collections will be created in this database
+                </p>
+              </div>
+
+              {exportError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-sm text-red-600">{exportError}</p>
+                </div>
+              )}
+              {exportSuccess && (
+                <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                  <p className="text-sm text-green-600">{exportSuccess}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExportModal(false);
+                    setExportError("");
+                    setExportSuccess("");
+                    setConnectionString("");
+                    setDatabaseName("");
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg border border-slate/20 hover:border-slate/40 text-ink font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={validating || exporting}
+                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {validating ? "Validating..." : exporting ? "Exporting..." : "Export to Atlas"}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-4 p-3 rounded-lg bg-amber/10 border border-amber/30">
+              <p className="text-xs text-amber-700">
+                <strong>⚠️ Note:</strong> Existing collections with the same names will be skipped. Make sure your IP is whitelisted in Atlas Network Access.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
