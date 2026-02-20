@@ -10,6 +10,7 @@ import History from "./routes/History";
 import Login from "./routes/Login";
 import ModelingAdvisor from "./routes/ModelingAdvisor";
 import Profile from "./routes/Profile";
+import QueryLatencySimulator from "./routes/QueryLatencySimulator";
 import SchemaDetail from "./routes/SchemaDetail";
 import SchemaEvolution from "./routes/SchemaEvolution";
 import Signup from "./routes/Signup";
@@ -29,6 +30,7 @@ const App = () => {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/advisor" element={<ModelingAdvisor />} />
           <Route path="/evolution" element={<SchemaEvolution />} />
+          <Route path="/query-latency" element={<QueryLatencySimulator />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/schema/:id" element={<SchemaDetail />} />
         </Route>
