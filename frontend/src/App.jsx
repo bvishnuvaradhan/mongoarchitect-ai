@@ -11,6 +11,7 @@ import Login from "./routes/Login";
 import ModelingAdvisor from "./routes/ModelingAdvisor";
 import Profile from "./routes/Profile";
 import SchemaDetail from "./routes/SchemaDetail";
+import SchemaEvolution from "./routes/SchemaEvolution";
 import Signup from "./routes/Signup";
 
 const App = () => {
@@ -27,6 +28,7 @@ const App = () => {
           <Route path="/compare" element={<Compare />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/advisor" element={<ModelingAdvisor />} />
+          <Route path="/evolution" element={<SchemaEvolution />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/schema/:id" element={<SchemaDetail />} />
         </Route>
