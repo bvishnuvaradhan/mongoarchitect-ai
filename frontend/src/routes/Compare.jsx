@@ -45,8 +45,8 @@ const Compare = () => {
   const [requirement, setRequirement] = useState("");
   const [analysisText, setAnalysisText] = useState("");
   const [workloadType, setWorkloadType] = useState("balanced");
-  const [model1, setModel1] = useState("claude");
-  const [model2, setModel2] = useState("gpt");
+  const model1 = "groq"; // Fixed to default chat model
+  const [model2, setModel2] = useState("claude");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,8 +63,8 @@ const Compare = () => {
       return;
     }
 
-    if (model1 === model2) {
-      setError("Please choose two different models.");
+    if (model2 === "groq") {
+      setError("Please choose a different model to compare against Groq.");
       return;
     }
 
@@ -165,8 +165,7 @@ const Compare = () => {
       <header>
         <h1 className="font-display text-3xl">Compare AI Model Schemas</h1>
         <p className="text-slate mt-2">
-          Generate two schemas from the same requirement and compare them side-by-side with separate
-          diffs for each model.
+          Compare our default model (Groq) against other AI models to see how they approach the same requirement.
         </p>
       </header>
 
@@ -208,14 +207,13 @@ const Compare = () => {
             </div>
             <div>
               <label htmlFor="model1" className="block text-sm font-semibold text-ink">
-                Model 1
+                Model 1 <span className="text-xs text-slate">(Default)</span>
               </label>
               <select
                 id="model1"
                 value={model1}
-                onChange={(event) => setModel1(event.target.value)}
-                disabled={loading}
-                className="mt-2 w-full rounded-lg border border-wave/30 bg-blush px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wave"
+                disabled
+                className="mt-2 w-full rounded-lg border border-wave/30 bg-blush/50 px-3 py-2 text-ink opacity-75 cursor-not-allowed"
               >
                 {MODELS.map((model) => (
                   <option key={model.id} value={model.id}>
@@ -226,7 +224,7 @@ const Compare = () => {
             </div>
             <div>
               <label htmlFor="model2" className="block text-sm font-semibold text-ink">
-                Model 2
+                Model 2 <span className="text-xs text-slate">(Compare with)</span>
               </label>
               <select
                 id="model2"
@@ -235,7 +233,7 @@ const Compare = () => {
                 disabled={loading}
                 className="mt-2 w-full rounded-lg border border-wave/30 bg-blush px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wave"
               >
-                {MODELS.map((model) => (
+                {MODELS.filter((model) => model.id !== "groq").map((model) => (
                   <option key={model.id} value={model.id}>
                     {model.label}
                   </option>
