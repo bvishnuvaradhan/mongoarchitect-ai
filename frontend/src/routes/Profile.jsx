@@ -105,7 +105,8 @@ const Profile = () => {
       setTimeout(() => {
         setShowPasswordForm(false);
         setPasswordSuccess("");
-      }, 2000);
+        setPasswordError("");
+      }, 1500);
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : "Failed to change password");
     } finally {
@@ -126,61 +127,7 @@ const Profile = () => {
   const formatRelativeTime = (dateStr) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
-    co  
-        <div className="pt-4 border-t border-slate/20">
-          <button
-            onClick={() => setShowPasswordForm(!showPasswordForm)}
-            className="text-primary hover:text-primary/80 font-medium transition-colors"
-          >
-            {showPasswordForm ? "Cancel" : "Change Password"}
-          </button>
-          
-          {showPasswordForm && (
-            <form onSubmit={handlePasswordChange} className="mt-4 space-y-3">
-              <input
-                type="password"
-                placeholder="Current Password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate/20 px-4 py-2"
-                required
-              />
-              <input
-                type="password"
-                placeholder="New Password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate/20 px-4 py-2"
-                required
-                minLength={8}
-              />
-              <input
-                type="password"
-                placeholder="Confirm New Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate/20 px-4 py-2"
-                required
-              />
-              
-              {passwordError && (
-                <p className="text-sm text-red-600">{passwordError}</p>
-              )}
-              {passwordSuccess && (
-                <p className="text-sm text-green-600">{passwordSuccess}</p>
-              )}
-              
-              <button
-                type="submit"
-                disabled={passwordLoading}
-                className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {passwordLoading ? "Changing..." : "Change Password"}
-              </button>
-            </form>
-          )}
-        </div>
-      nst now = new Date();
+    const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
@@ -213,7 +160,117 @@ const Profile = () => {
             <p className="font-semibold text-ink">{formatDate(user?.createdAt)}</p>
           </div>
         </div>
+        
+        <div className="pt-4 border-t border-slate/20">
+          <button
+            onClick={() => setShowPasswordForm(true)}
+            className="text-primary hover:text-primary/80 font-medium transition-colors"
+          >
+            Change Password
+          </button>
+        </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showPasswordForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="data-card w-full max-w-md p-6 m-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl">Change Password</h2>
+              <button
+                onClick={() => {
+                  setShowPasswordForm(false);
+                  setPasswordError("");
+                  setPasswordSuccess("");
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                className="text-slate hover:text-ink transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate mb-1">Current Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate/20 px-4 py-2"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-slate mb-1">New Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate/20 px-4 py-2"
+                  required
+                  minLength={8}
+                />
+                <p className="text-xs text-slate mt-1">Must be at least 8 characters</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm text-slate mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate/20 px-4 py-2"
+                  required
+                />
+              </div>
+              
+              {passwordError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-sm text-red-600">{passwordError}</p>
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                  <p className="text-sm text-green-600">{passwordSuccess}</p>
+                </div>
+              )}
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordForm(false);
+                    setPasswordError("");
+                    setPasswordSuccess("");
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg border border-slate/20 hover:border-slate/40 text-ink font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {passwordLoading ? "Changing..." : "Change Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Usage Overview */}
       <div className="data-card p-6 space-y-4">
