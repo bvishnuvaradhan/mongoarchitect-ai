@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import auth, schema, users, agent, compare_schema, export
+from .routers import auth, schema, users, agent, compare_schema, export, advisor
 
 
 app = FastAPI(title="MongoArchitect AI API")
@@ -23,6 +23,7 @@ app.include_router(schema.router)
 app.include_router(compare_schema.router)
 app.include_router(agent.router)
 app.include_router(export.router)
+app.include_router(advisor.router)
 
 
 @app.get("/")

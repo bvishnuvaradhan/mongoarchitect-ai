@@ -32,6 +32,7 @@ const Layout = () => {
           <NavItem to="/history" label="History" />
           <NavItem to="/compare" label="Compare" />
           <NavItem to="/analytics" label="Analytics" />
+          <NavItem to="/advisor" label="Modeling Advisor" />
           <NavItem to="/profile" label="Profile" />
         </nav>
         <div className="mt-auto data-card p-4 text-sm flex-shrink-0">
