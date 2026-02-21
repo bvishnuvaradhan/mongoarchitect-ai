@@ -38,17 +38,32 @@ def calculate_doc_size(schema: Dict[str, Any]) -> int:
 
 
 def detect_array_fields(schema: Dict[str, Any]) -> List[str]:
-    """Detect fields that are arrays or plural (suggest bucketing)."""
+    """Detect fields that are arrays (not just any field ending with 's')."""
     arrays = []
     result = schema.get("result", {})
     schema_def = result.get("schema", {})
+    
+    # Exclude common non-array fields ending in 's'
+    non_array_endings = ["status", "address", "class", "business", "access", "progress", "process"]
     
     for collection_name, fields in schema_def.items():
         if not isinstance(fields, dict):
             continue
         
         for field_name, field_type in fields.items():
-            if "array" in str(field_type).lower() or field_name.endswith("s"):
+            field_str = str(field_type).lower()
+            field_lower = field_name.lower()
+            
+            # Skip known non-arrays
+            if field_lower in non_array_endings:
+                continue
+            
+            # Explicit array or semantic plural
+            if "array" in field_str or isinstance(field_type, list):
+                arrays.append(field_name)
+            elif field_name.endswith("s") and any(keyword in field_lower for keyword in 
+                ["comment", "review", "item", "tag", "member", "rating", "notification", 
+                 "message", "log", "event", "document", "file", "image", "video", "photo"]):
                 arrays.append(field_name)
     
     return arrays

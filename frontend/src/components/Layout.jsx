@@ -35,6 +35,7 @@ const Layout = () => {
           <NavItem to="/advisor" label="Modeling Advisor" />
           <NavItem to="/evolution" label="Schema Evolution" />
           <NavItem to="/query-latency" label="Query Latency" />
+          <NavItem to="/access-patterns" label="Access Patterns" />
           <NavItem to="/profile" label="Profile" />
         </nav>
         <div className="mt-auto data-card p-4 text-sm flex-shrink-0">

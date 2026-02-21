@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "./state/auth";
 import Layout from "./components/Layout";
+import AccessPatternHeatmap from "./routes/AccessPatternHeatmap";
 import Analytics from "./routes/Analytics";
 import Chat from "./routes/Chat";
 import Compare from "./routes/Compare";
@@ -31,6 +32,7 @@ const App = () => {
           <Route path="/advisor" element={<ModelingAdvisor />} />
           <Route path="/evolution" element={<SchemaEvolution />} />
           <Route path="/query-latency" element={<QueryLatencySimulator />} />
+          <Route path="/access-patterns" element={<AccessPatternHeatmap />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/schema/:id" element={<SchemaDetail />} />
         </Route>
