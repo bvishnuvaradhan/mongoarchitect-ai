@@ -1,4 +1,5 @@
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
+import { useState } from "react";
 
 import { useAuth } from "../state/auth";
 import Logo from "./Logo";
@@ -7,6 +8,15 @@ import NavItem from "./NavItem";
 const Layout = () => {
   const { user, isLoading, logout } = useAuth();
   const location = useLocation();
+
+  // Sidebar group expand/collapse state
+  const [expanded, setExpanded] = useState({
+    design: true,
+    cost: true,
+    perf: true,
+  });
+
+  const toggleGroup = (key) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
 
   if (isLoading) {
     return (
@@ -27,19 +37,69 @@ const Layout = () => {
           <Logo variant="horizontal" />
         </div>
         <nav className="flex flex-col gap-2 flex-shrink-0">
+          {/* Dashboard always at top */}
           <NavItem to="/dashboard" label="Dashboard" />
-          <NavItem to="/chat" label="AI Agent Chat" />
-          <NavItem to="/history" label="History" />
-          <NavItem to="/compare" label="Compare" />
-          <NavItem to="/analytics" label="Analytics" />
-          <NavItem to="/advisor" label="Modeling Advisor" />
-          <NavItem to="/evolution" label="Schema Evolution" />
-          <NavItem to="/query-latency" label="Query Latency" />
-          <NavItem to="/access-patterns" label="Access Patterns" />
+          {/* Expandable groups in the middle */}
+          <div className="flex flex-col gap-2 mt-2 mb-2">
+            {/* DESIGN group */}
+            <div>
+              <button
+                className="w-full flex items-center justify-between px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-wave focus:outline-none"
+                onClick={() => toggleGroup('design')}
+                type="button"
+              >
+                DESIGN
+                <span className={`ml-2 transition-transform ${expanded.design ? '' : 'rotate-180'}`}>▼</span>
+              </button>
+              {expanded.design && (
+                <div className="pl-2 flex flex-col gap-1 mt-1">
+                  <NavItem to="/chat" label="AI Agent Chat" />
+                  <NavItem to="/advisor" label="Modeling Advisor" />
+                </div>
+              )}
+            </div>
+            {/* COST group */}
+            <div>
+              <button
+                className="w-full flex items-center justify-between px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-wave focus:outline-none"
+                onClick={() => toggleGroup('cost')}
+                type="button"
+              >
+                COST
+                <span className={`ml-2 transition-transform ${expanded.cost ? '' : 'rotate-180'}`}>▼</span>
+              </button>
+              {expanded.cost && (
+                <div className="pl-2 flex flex-col gap-1 mt-1">
+                  <NavItem to="/history" label="History" />
+                  <NavItem to="/compare" label="Compare" />
+                  <NavItem to="/analytics" label="Analytics" />
+                </div>
+              )}
+            </div>
+            {/* PERFORMANCE & GROWTH group */}
+            <div>
+              <button
+                className="w-full flex items-center justify-between px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-wave focus:outline-none"
+                onClick={() => toggleGroup('perf')}
+                type="button"
+              >
+                PERFORMANCE & GROWTH
+                <span className={`ml-2 transition-transform ${expanded.perf ? '' : 'rotate-180'}`}>▼</span>
+              </button>
+              {expanded.perf && (
+                <div className="pl-2 flex flex-col gap-1 mt-1">
+                  <NavItem to="/evolution" label="Schema Evolution" />
+                  <NavItem to="/query-latency" label="Query Latency" />
+                  <NavItem to="/access-patterns" label="Access Patterns" />
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Profile just below PERFORMANCE & GROWTH */}
           <NavItem to="/profile" label="Profile" />
         </nav>
         <div className="mt-auto data-card p-4 text-sm flex-shrink-0">
-          <p className="text-slate">Signed in as</p>
+          <p className="text-slate mt-2">Signed in as</p>
           <p className="font-medium text-ink truncate">{user.email}</p>
           <button
             type="button"

@@ -6,6 +6,7 @@ import AccessPatternHeatmap from "./routes/AccessPatternHeatmap";
 import Analytics from "./routes/Analytics";
 import Chat from "./routes/Chat";
 import Compare from "./routes/Compare";
+import CostEstimator from "./routes/CostEstimator";
 import Dashboard from "./routes/Dashboard";
 import History from "./routes/History";
 import Login from "./routes/Login";
@@ -33,6 +34,7 @@ const App = () => {
           <Route path="/evolution" element={<SchemaEvolution />} />
           <Route path="/query-latency" element={<QueryLatencySimulator />} />
           <Route path="/access-patterns" element={<AccessPatternHeatmap />} />
+          <Route path="/cost-estimator/:schemaId" element={<CostEstimator />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/schema/:id" element={<SchemaDetail />} />
         </Route>

@@ -377,6 +377,12 @@ const SchemaDetail = () => {
             </h3>
             <div className="flex gap-3">
               <button
+                onClick={() => navigate(`/cost-estimator/${id}`)}
+                className="text-xs text-amber hover:underline font-medium"
+              >
+                💰 Cost Estimator
+              </button>
+              <button
                 onClick={handleExport}
                 className="text-xs text-wave hover:underline font-medium"
               >

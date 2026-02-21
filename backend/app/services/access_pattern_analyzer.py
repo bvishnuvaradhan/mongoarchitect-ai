@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 import random
+from hashlib import sha256
 
 
 def analyze_field_access_patterns(schema: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Analyze which fields are most frequently filtered in queries.
     Simulate access patterns based on field characteristics.
+    Deterministic: random seed is set based on schema content.
     """
+    # Deterministic random seed based on schema content
+    schema_str = str(schema.get("result", {}).get("schema", {}))
+    seed = int(sha256(schema_str.encode("utf-8")).hexdigest(), 16) % (2**32)
+    random.seed(seed)
     field_patterns = []
     result = schema.get("result", {})
     schema_def = result.get("schema", {})
@@ -1012,10 +1018,6 @@ def generate_shard_key_recommendations(
                 "write_percentage": w["write_percentage"],
                 "total_ops_per_sec": w["total_ops_per_sec"]
             })
-    
-    # Sort by priority score (highest first) - this dynamically adapts to workload
-    shard_candidates.sort(key=lambda x: x["priority_score"], reverse=True)
-    high_volume = shard_candidates[:3]  # Top 3 candidates
     
     # Sort by priority score (highest first) - this dynamically adapts to workload
     shard_candidates.sort(key=lambda x: x["priority_score"], reverse=True)
