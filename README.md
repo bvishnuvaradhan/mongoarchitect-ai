@@ -2,6 +2,7 @@
 
 AI-powered MongoDB schema designer with intelligent refinements, version tracking, and comprehensive schema analysis.
 
+
 ## ✨ Features
 
 - **AI-Powered Schema Generation** - Uses Groq LLM to generate optimal MongoDB schemas from natural language
@@ -12,6 +13,7 @@ AI-powered MongoDB schema designer with intelligent refinements, version trackin
 - **Interactive Chat** - Conversational interface for schema design and questions
 - **Export Functionality** - Download schemas as JSON files
 - **JWT Authentication** - Secure user accounts and schema ownership
+- **Sidebar Navigation** - Grouped navigation: DESIGN, ANALYSIS, PERFORMANCE & GROWTH (formerly COST is now ANALYSIS)
 
 ## Tech Stack
 
@@ -76,6 +78,10 @@ Frontend runs on `http://localhost:5173`.
 - **Decisions:** Why collections are structured this way
 - **Indexes:** Performance optimization recommendations
 - **Warnings:** Potential scalability issues
+- **Sidebar Navigation:**
+   - **DESIGN:** AI Agent Chat, Modeling Advisor, History
+   - **ANALYSIS:** Compare, Analytics (formerly COST)
+   - **PERFORMANCE & GROWTH:** Access Pattern Heatmap, Growth Advisor
 
 ## Environment Variables
 
