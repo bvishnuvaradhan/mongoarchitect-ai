@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import JsonPanel from "../components/JsonPanel";
 import { chatWithAgent, resetAgent } from "../api/agent";
 
@@ -13,6 +14,8 @@ export default function Chat() {
   const [workloadType, setWorkloadType] = useState("balanced");
   const [activeTab, setActiveTab] = useState("schema");
   const messagesEndRef = useRef(null);
+
+  const navigate = useNavigate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -49,6 +52,8 @@ export default function Chat() {
         setSchema(response.schema);
         if (response.schemaId) {
           setSchemaId(response.schemaId);
+          // Redirect to schema detail page after generation
+          navigate(`/schema/${response.schemaId}`);
         }
       }
     } catch (error) {
@@ -94,6 +99,8 @@ export default function Chat() {
         setSchema(response.schema);
         if (response.schemaId) {
           setSchemaId(response.schemaId);
+          // Redirect to schema detail page after generation
+          navigate(`/schema/${response.schemaId}`);
         }
       }
     } catch (error) {

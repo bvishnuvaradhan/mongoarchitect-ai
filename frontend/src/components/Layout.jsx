@@ -11,9 +11,9 @@ const Layout = () => {
 
   // Sidebar group expand/collapse state
   const [expanded, setExpanded] = useState({
-    design: true,
-    cost: true,
-    perf: true,
+    design: false,
+    analysis: false,
+    perf: false,
   });
 
   const toggleGroup = (key) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -55,22 +55,22 @@ const Layout = () => {
                 <div className="pl-2 flex flex-col gap-1 mt-1">
                   <NavItem to="/chat" label="AI Agent Chat" />
                   <NavItem to="/advisor" label="Modeling Advisor" />
+                  <NavItem to="/history" label="History" />
                 </div>
               )}
             </div>
-            {/* COST group */}
+            {/* ANALYSIS group */}
             <div>
               <button
                 className="w-full flex items-center justify-between px-2 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-wave focus:outline-none"
-                onClick={() => toggleGroup('cost')}
+                onClick={() => toggleGroup('analysis')}
                 type="button"
               >
-                COST
-                <span className={`ml-2 transition-transform ${expanded.cost ? '' : 'rotate-180'}`}>▼</span>
+                ANALYSIS
+                <span className={`ml-2 transition-transform ${expanded.analysis ? '' : 'rotate-180'}`}>▼</span>
               </button>
-              {expanded.cost && (
+              {expanded.analysis && (
                 <div className="pl-2 flex flex-col gap-1 mt-1">
-                  <NavItem to="/history" label="History" />
                   <NavItem to="/compare" label="Compare" />
                   <NavItem to="/analytics" label="Analytics" />
                 </div>
