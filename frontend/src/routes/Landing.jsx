@@ -4,32 +4,32 @@ import { Link } from "react-router-dom";
 function MockPreview() {
   const scenarios = [
     {
-      query: "E-commerce app: users, products, orders, reviews",
+      query: " Generate MongoDB schema for e-commerce, optimized for balanced.",
       schema: `{
   "collections": {
-    "users": { "fields": ["_id", "name", "email"] },
-    "products": { "fields": ["_id", "title", "price"] },
-    "orders": { "fields": ["_id", "user_id", "items", "total"] }
+    "users": ["_id", "name", "email"],
+    "products": ["_id", "name", "category", "price", "rating"],
+    "orders": ["_id", "user_id", "items", "total_amount", "status"]
   }
 }`,
     },
     {
-      query: "Social app: users, posts, comments, likes",
+      query: " Generate MongoDB schema for social media, optimized for read-heavy.",
       schema: `{
   "collections": {
-    "users": { "fields": ["_id", "username", "bio"] },
-    "posts": { "fields": ["_id", "author_id", "content"] },
-    "comments": { "fields": ["_id", "post_id", "author_id", "text"] }
+    "users": ["_id", "username", "followers_count"],
+    "posts": ["_id", "user_id", "content", "likes_count"],
+    "comments": ["_id", "post_id", "user_id", "text"]
   }
 }`,
     },
     {
-      query: "SaaS: teams, members, subscriptions, invoices",
+      query: " Generate MongoDB schema for IoT telemetry, optimized for time-series.",
       schema: `{
   "collections": {
-    "teams": { "fields": ["_id", "name", "owner_id"] },
-    "members": { "fields": ["_id", "team_id", "user_id"] },
-    "invoices": { "fields": ["_id", "amount", "status"] }
+    "devices": ["_id", "device_id", "location"],
+    "sensor_readings": ["_id", "device_id", "temperature", "humidity"],
+    "alerts": ["_id", "device_id", "alert_type", "triggered_at"]
   }
 }`,
     },
@@ -47,15 +47,22 @@ function MockPreview() {
       setQuery("");
       setDisplayedSchema("");
       setPhase("typing");
-      const fullQuery = scenarios[idx].query;
+      const fullQuery = scenarios[idx].query || "";
       let i = 0;
       const t = setInterval(() => {
-        setQuery((s) => s + fullQuery[i]);
-        i += 1;
         if (i >= fullQuery.length) {
           clearInterval(t);
           timers.push(setTimeout(() => setPhase("generating"), 600));
+          return;
         }
+        const ch = fullQuery[i];
+        if (typeof ch !== "string") {
+          // defensive: skip undefined/non-string characters
+          i += 1;
+          return;
+        }
+        setQuery((s) => s + ch);
+        i += 1;
       }, 28);
       timers.push(t);
     };
@@ -112,7 +119,7 @@ function MockPreview() {
         {displayedSchema ? (
           <pre className="whitespace-pre-wrap">{displayedSchema}</pre>
         ) : (
-          <div className="text-slate/70">{phase === "generating" ? "…thinking" : "Preview will appear here"}</div>
+          <div className="text-slate/70">{phase === "generating" ? "…thinking" : "A clean product screenshot"}</div>
         )}
       </div>
     </div>
@@ -145,15 +152,13 @@ export default function Landing() {
         {/* Hero */}
         <section className="max-w-6xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-ink">Design Smarter MongoDB Schemas.<br />Predict Costs Before You Deploy.</h1>
-            <p className="text-slate max-w-xl">AI-powered schema generation, cost forecasting, and performance modeling — all in one intelligent platform.</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold text-ink">Design Smarter MongoDB Architectures.<br />Eliminate Surprise Infrastructure Costs Before You Deploy.</h1>
+            <p className="text-slate max-w-xl">AI-powered schema design, cost forecasting, and performance simulation — engineered for production-scale MongoDB environments.</p>
 
-            <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-4 mt-6">
               <Link to="/signup" className="px-6 py-3 bg-wave text-white rounded-lg font-semibold shadow">🚀 Get Started</Link>
               <a href="#demo" className="px-4 py-3 border border-wave/20 rounded-lg text-slate hover:bg-wave/5">▶️ Watch Demo</a>
             </div>
-
-            <div className="mt-6 text-sm text-slate">Simple. Clean. Professional.</div>
           </div>
 
           <div className="flex items-center justify-center">
@@ -169,6 +174,7 @@ export default function Landing() {
         <section id="problem" className="bg-mist/50 border-t border-wave/10 py-12">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-2xl font-bold text-ink">The Hidden Cost of Poor MongoDB Design</h2>
+            <p className="mt-4 font-semibold text-ink">Poor schema decisions can silently multiply your infrastructure costs at scale.</p>
             <div className="mt-4 grid md:grid-cols-2 gap-6 text-slate">
               <ul className="space-y-2">
                 <li>• Unexpected Atlas bills</li>
@@ -180,25 +186,25 @@ export default function Landing() {
                 <li>• Performance issues discovered too late</li>
               </ul>
             </div>
-            <p className="mt-4 font-semibold text-ink">Most tools analyze after deployment. We analyze before it happens.</p>
+            <p className="mt-4 font-semibold text-ink">Most tools react after deployment.<br />MongoArchitect AI prevents costly failures before they happen.</p>
           </div>
         </section>
 
         {/* Solution - 3 Intelligence Layers */}
         <section id="solution" className="py-16">
           <div className="max-w-6xl mx-auto px-6">
-            <h2 className="text-2xl font-bold text-ink">Full Lifecycle MongoDB Intelligence</h2>
+            <h2 className="text-2xl font-bold text-ink">End-to-End MongoDB Architecture Intelligence Platform</h2>
             <div className="mt-8 grid md:grid-cols-3 gap-6">
               <div className="p-6 bg-white/5 border border-wave/10 rounded-lg">
-                <h3 className="font-semibold text-wave">Design Intelligence</h3>
+                <h3 className="font-semibold text-wave">AI-Powered Schema Design</h3>
                 <p className="text-slate text-sm mt-2">Generate production-ready schemas using AI. Get modeling guidance before writing a single query.</p>
               </div>
               <div className="p-6 bg-white/5 border border-wave/10 rounded-lg">
-                <h3 className="font-semibold text-wave">Cost Intelligence</h3>
+                <h3 className="font-semibold text-wave">Predictive Cost Modeling</h3>
                 <p className="text-slate text-sm mt-2">Forecast storage, IOPS, and tier upgrades across 12 months. Compare architectures before committing.</p>
               </div>
               <div className="p-6 bg-white/5 border border-wave/10 rounded-lg">
-                <h3 className="font-semibold text-wave">Performance & Growth Intelligence</h3>
+                <h3 className="font-semibold text-wave">Performance &amp; Scalability Simulation</h3>
                 <p className="text-slate text-sm mt-2">Simulate workloads, analyze query latency, and predict scaling limits.</p>
               </div>
             </div>
@@ -213,17 +219,17 @@ export default function Landing() {
               <div className="p-4 text-center">
                 <div className="text-2xl font-bold">1️⃣</div>
                 <h4 className="font-semibold mt-2">Describe Your Application</h4>
-                <p className="text-sm mt-1">AI generates structured MongoDB schema</p>
+                <p className="text-sm mt-1">Explain your app in plain language.</p>
               </div>
               <div className="p-4 text-center">
                 <div className="text-2xl font-bold">2️⃣</div>
-                <h4 className="font-semibold mt-2">Analyze Cost & Performance</h4>
-                <p className="text-sm mt-1">See projected cost, tier upgrades, and bottlenecks</p>
+                <h4 className="font-semibold mt-2">Analyze Architecture Impact</h4>
+                <p className="text-sm mt-1">Instantly visualize projected costs, tier upgrades, and performance bottlenecks.</p>
               </div>
               <div className="p-4 text-center">
                 <div className="text-2xl font-bold">3️⃣</div>
-                <h4 className="font-semibold mt-2">Optimize & Scale</h4>
-                <p className="text-sm mt-1">Apply recommendations and simulate growth scenarios</p>
+                <h4 className="font-semibold mt-2">Optimize With Confidence</h4>
+                <p className="text-sm mt-1">Apply recommendations and simulate growth scenarios.</p>
               </div>
             </div>
           </div>
@@ -235,12 +241,12 @@ export default function Landing() {
             <h2 className="text-2xl font-bold text-ink">Powerful Capabilities Built for Real-World Architectures</h2>
             <div className="mt-6 grid sm:grid-cols-2 md:grid-cols-3 gap-4">
               {[
-                ["AI Schema Generator","Generate schemas from natural language"],
-                ["Cost Estimator","Forecast storage & IOPS"],
-                ["Architecture Compare","Compare designs side-by-side"],
-                ["Query Latency Modeling","Simulate query response under load"],
-                ["Access Pattern Simulation","Visualize hotpaths and growth"],
-                ["Schema Evolution Tracking","Versioned changes with diffs"]
+                ["AI Schema Generator","Transform natural language into structured MongoDB schemas."],
+                ["Cost Estimator","Forecast storage growth, IOPS demand, and tier trajectory."],
+                ["Architecture Compare","Evaluate architecture designs side-by-side before deployment."],
+                ["Query Latency Modeling","Simulate realistic query performance under production workloads."],
+                ["Access Pattern Simulation","Identify workload hotspots and scaling risks early."],
+                ["Schema Evolution Tracking","Versioned changes with structured diffs."]
               ].map(([title, sub]) => (
                 <div key={title} className="p-4 bg-white/5 border border-wave/10 rounded-lg">
                   <div className="font-semibold text-wave">{title}</div>
@@ -251,11 +257,24 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Trust Signal Section */}
+        <section className="py-12 bg-mist/40">
+          <div className="max-w-6xl mx-auto px-6 text-center">
+            <h3 className="text-xl font-semibold text-ink">Built for Developers Who Take Architecture Seriously</h3>
+            <div className="mt-3 text-slate max-w-2xl mx-auto space-y-1">
+              <div>Built for teams running production-scale MongoDB systems.</div>
+              <div>Backed by lifecycle architecture intelligence.</div>
+              <div>Powered by real cost modeling logic.</div>
+            </div>
+            <p className="mt-4 text-slate/70">MongoArchitect AI shifts MongoDB optimization from reactive monitoring to proactive architecture intelligence.</p>
+          </div>
+        </section>
+
         {/* Why Different */}
         <section className="bg-mist/50 py-12">
           <div className="max-w-6xl mx-auto px-6">
-            <h2 className="text-2xl font-bold text-ink">Why MongoArchitect AI?</h2>
-            <p className="mt-4 text-slate max-w-2xl">Traditional tools monitor after deployment. MongoArchitect AI prevents cost and performance issues before they occur.</p>
+            <h2 className="text-2xl font-bold text-ink">Why It Matters</h2>
+            <p className="mt-4 text-slate max-w-2xl">Traditional MongoDB tools focus on monitoring performance after deployment.<br />MongoArchitect AI delivers pre-deployment architecture intelligence to eliminate cost surprises, prevent performance failures, and enable predictable scaling.</p>
             <div className="mt-6 grid md:grid-cols-3 gap-4 text-slate">
               <div className="p-4 bg-white/5 border border-wave/10 rounded-lg">Pre-deployment cost forecasting</div>
               <div className="p-4 bg-white/5 border border-wave/10 rounded-lg">Tier trajectory simulation</div>
@@ -265,11 +284,11 @@ export default function Landing() {
         </section>
 
         {/* CTA */}
-        <section className="py-16 bg-wave/5 border-t border-wave/10">
+        <section className="py-20 bg-wave/5 border-t border-wave/10">
           <div className="max-w-6xl mx-auto px-6 text-center">
-            <h2 className="text-3xl font-bold text-ink">Stop Guessing. Start Designing with Intelligence.</h2>
-            <div className="mt-6">
-              <Link to="/signup" className="px-8 py-4 bg-wave text-white rounded-lg font-semibold shadow-lg">🚀 Start Designing Now</Link>
+            <h2 className="text-4xl md:text-5xl font-extrabold leading-none tracking-tight text-ink">Stop Guessing Your MongoDB Costs.<br />Start Designing with Predictable Intelligence.</h2>
+            <div className="mt-8">
+              <Link to="/signup" className="px-10 py-5 bg-wave text-white rounded-lg font-semibold shadow-lg text-lg">🚀 Start Designing Now</Link>
             </div>
           </div>
         </section>
