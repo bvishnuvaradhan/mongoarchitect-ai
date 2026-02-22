@@ -152,12 +152,11 @@ export default function Landing() {
         {/* Hero */}
         <section className="max-w-6xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-ink">Design Smarter MongoDB Architectures.<br />Eliminate Surprise Infrastructure Costs Before You Deploy.</h1>
+            <h1 className="text-3xl md:text-4xl font-extrabold leading-tight text-ink">Design Smarter MongoDB Architectures.<br />Eliminate Surprise Infrastructure Costs Before You Deploy.</h1>
             <p className="text-slate max-w-xl">AI-powered schema design, cost forecasting, and performance simulation — engineered for production-scale MongoDB environments.</p>
 
             <div className="flex items-center gap-4 mt-6">
               <Link to="/signup" className="px-6 py-3 bg-wave text-white rounded-lg font-semibold shadow">🚀 Get Started</Link>
-              <a href="#demo" className="px-4 py-3 border border-wave/20 rounded-lg text-slate hover:bg-wave/5">▶️ Watch Demo</a>
             </div>
           </div>
 
