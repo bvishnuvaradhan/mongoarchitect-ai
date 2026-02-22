@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "./state/auth";
 import Layout from "./components/Layout";
+import Landing from "./routes/Landing";
 import AccessPatternHeatmap from "./routes/AccessPatternHeatmap";
 import Analytics from "./routes/Analytics";
 import Chat from "./routes/Chat";
@@ -21,10 +22,13 @@ const App = () => {
   return (
     <AuthProvider>
       <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+
+        {/* Protected layout routes */}
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/history" element={<History />} />
