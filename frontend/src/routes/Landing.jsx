@@ -109,7 +109,7 @@ function MockPreview() {
   return (
     <div className="w-full h-full p-3 flex flex-col">
       <div className="flex gap-2 items-center mb-3">
-        <div className="flex-1 bg-white/5 rounded px-3 py-2 text-sm text-slate">{query || <span className="text-slate/60">Describe your app...</span>}</div>
+        <div className="flex-1 bg-white/3 rounded px-3 py-2 text-sm text-slate">{query || <span className="text-slate/60">Describe your app...</span>}</div>
         <div className="px-3 py-2 rounded bg-wave/80 text-white text-xs font-medium">
           {phase === "generating" ? "Generating..." : phase === "done" ? "Done" : "Generate"}
         </div>
@@ -128,9 +128,9 @@ function MockPreview() {
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-mist text-ink">
+    <div className="min-h-screen bg-mist/95 text-ink">
       {/* Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-mist/60 backdrop-blur border-b border-wave/10">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-mist/95 backdrop-blur border-b border-wave/10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo-horizontal.png" alt="MongoArchitect AI" className="h-8" />
@@ -160,9 +160,9 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="flex items-center justify-center">
-            <div className="w-full max-w-lg p-6 bg-white/5 border border-wave/10 rounded-2xl shadow-lg">
-              <div className="h-64 bg-blush/30 rounded-lg overflow-hidden flex items-center justify-center">
+            <div className="flex items-center justify-center">
+            <div className="w-full max-w-lg p-6 bg-white/3 border border-wave/20 rounded-2xl shadow-lg">
+              <div className="h-64 bg-blush/10 rounded-lg overflow-hidden flex items-center justify-center">
                 <MockPreview />
               </div>
             </div>
@@ -170,7 +170,7 @@ export default function Landing() {
         </section>
 
         {/* Problem Section */}
-        <section id="problem" className="bg-mist/50 border-t border-wave/10 py-12">
+        <section id="problem" className="bg-mist/95 border-t border-wave/10 py-12">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-2xl font-bold text-ink">The Hidden Cost of Poor MongoDB Design</h2>
             <p className="mt-4 font-semibold text-ink">Poor schema decisions can silently multiply your infrastructure costs at scale.</p>
@@ -194,15 +194,15 @@ export default function Landing() {
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-2xl font-bold text-ink">End-to-End MongoDB Architecture Intelligence Platform</h2>
             <div className="mt-8 grid md:grid-cols-3 gap-6">
-              <div className="p-6 bg-white/5 border border-wave/10 rounded-lg">
+              <div className="p-6 bg-white/3 border border-wave/20 rounded-lg">
                 <h3 className="font-semibold text-wave">AI-Powered Schema Design</h3>
                 <p className="text-slate text-sm mt-2">Generate production-ready schemas using AI. Get modeling guidance before writing a single query.</p>
               </div>
-              <div className="p-6 bg-white/5 border border-wave/10 rounded-lg">
+              <div className="p-6 bg-white/3 border border-wave/20 rounded-lg">
                 <h3 className="font-semibold text-wave">Predictive Cost Modeling</h3>
                 <p className="text-slate text-sm mt-2">Forecast storage, IOPS, and tier upgrades across 12 months. Compare architectures before committing.</p>
               </div>
-              <div className="p-6 bg-white/5 border border-wave/10 rounded-lg">
+              <div className="p-6 bg-white/3 border border-wave/20 rounded-lg">
                 <h3 className="font-semibold text-wave">Performance &amp; Scalability Simulation</h3>
                 <p className="text-slate text-sm mt-2">Simulate workloads, analyze query latency, and predict scaling limits.</p>
               </div>
@@ -211,7 +211,7 @@ export default function Landing() {
         </section>
 
         {/* How It Works */}
-        <section id="how" className="bg-mist/50 py-12">
+        <section id="how" className="bg-mist/95 py-12">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-2xl font-bold text-ink">How It Works</h2>
             <div className="mt-8 grid md:grid-cols-3 gap-6 text-slate">
@@ -247,7 +247,7 @@ export default function Landing() {
                 ["Access Pattern Simulation","Identify workload hotspots and scaling risks early."],
                 ["Schema Evolution Tracking","Versioned changes with structured diffs."]
               ].map(([title, sub]) => (
-                <div key={title} className="p-4 bg-white/5 border border-wave/10 rounded-lg">
+                <div key={title} className="p-4 bg-white/3 border border-wave/20 rounded-lg">
                   <div className="font-semibold text-wave">{title}</div>
                   <div className="text-slate text-sm mt-1">{sub}</div>
                 </div>
@@ -257,7 +257,7 @@ export default function Landing() {
         </section>
 
         {/* Trust Signal Section */}
-        <section className="py-12 bg-mist/40">
+        <section className="py-12 bg-mist/95">
           <div className="max-w-6xl mx-auto px-6 text-center">
             <h3 className="text-xl font-semibold text-ink">Built for Developers Who Take Architecture Seriously</h3>
             <div className="mt-3 text-slate max-w-2xl mx-auto space-y-1">
@@ -270,7 +270,7 @@ export default function Landing() {
         </section>
 
         {/* Why Different */}
-        <section className="bg-mist/50 py-12">
+        <section className="bg-mist/95 py-12">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-2xl font-bold text-ink">Why It Matters</h2>
             <p className="mt-4 text-slate max-w-2xl">Traditional MongoDB tools focus on monitoring performance after deployment.<br />MongoArchitect AI delivers pre-deployment architecture intelligence to eliminate cost surprises, prevent performance failures, and enable predictable scaling.</p>
@@ -283,7 +283,7 @@ export default function Landing() {
         </section>
 
         {/* CTA */}
-        <section className="py-20 bg-wave/5 border-t border-wave/10">
+        <section className="py-20 bg-wave/10 border-t border-wave/10">
           <div className="max-w-6xl mx-auto px-6 text-center">
             <h2 className="text-4xl md:text-5xl font-extrabold leading-none tracking-tight text-ink">Stop Guessing Your MongoDB Costs.<br />Start Designing with Predictable Intelligence.</h2>
             <div className="mt-8">
@@ -293,7 +293,7 @@ export default function Landing() {
         </section>
 
         {/* Footer */}
-        <footer className="py-8 border-t border-wave/10 bg-mist">
+        <footer className="py-8 border-t border-wave/10 bg-mist/95">
           <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <img src="/logo-square.png" alt="MongoArchitect AI" className="h-8" />
