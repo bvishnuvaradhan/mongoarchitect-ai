@@ -9,3 +9,4 @@ pydantic-settings
 email-validator
 spacy==3.7.4
 anthropic
+groq
