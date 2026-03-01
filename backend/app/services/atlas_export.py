@@ -150,6 +150,7 @@ async def export_schema_to_atlas(
     """
     client = None
     created_collections = []
+    errors: List[Dict[str, Any]] = []
     
     try:
         client = AsyncIOMotorClient(
@@ -190,20 +191,31 @@ async def export_schema_to_atlas(
             
             # Build validator from fields
             validator = build_json_schema_validator(collection_name, fields)
-            
-            # Create collection with validator
-            await db.create_collection(
-                collection_name,
-                validator=validator,
-                validationLevel="moderate",
-                validationAction="warn"
-            )
-            
-            created_collections.append({
-                "name": collection_name,
-                "status": "created",
-                "fields": len(fields)
-            })
+
+            # Create collection with validator (capture errors per-collection)
+            try:
+                await db.create_collection(
+                    collection_name,
+                    validator=validator,
+                    validationLevel="moderate",
+                    validationAction="warn"
+                )
+
+                created_collections.append({
+                    "name": collection_name,
+                    "status": "created",
+                    "fields": len(fields)
+                })
+            except Exception as e:
+                err_msg = str(e)
+                created_collections.append({
+                    "name": collection_name,
+                    "status": "error",
+                    "error": err_msg
+                })
+                errors.append({"collection": collection_name, "op": "create_collection", "error": err_msg})
+                # continue attempting other collections
+                continue
         
         # Create indexes
         created_indexes = []
@@ -225,8 +237,10 @@ async def export_schema_to_atlas(
                         "collection": collection_name,
                         "field": field
                     })
-                except Exception:
-                    # Index creation failed, continue
+                except Exception as e:
+                    err_msg = str(e)
+                    errors.append({"collection": collection_name, "op": "create_index", "field": field, "error": err_msg})
+                    # continue creating other indexes
                     pass
         
         # Strategy 2: Auto-create indexes for common patterns
@@ -258,7 +272,8 @@ async def export_schema_to_atlas(
                             "field": field_name,
                             "auto": True
                         })
-                    except Exception:
+                    except Exception as e:
+                        errors.append({"collection": collection_name, "op": "create_index", "field": field_name, "error": str(e)})
                         pass
                 
                 # Index date fields for time-based queries
@@ -270,9 +285,20 @@ async def export_schema_to_atlas(
                             "field": field_name,
                             "auto": True
                         })
-                    except Exception:
+                    except Exception as e:
+                        errors.append({"collection": collection_name, "op": "create_index", "field": field_name, "error": str(e)})
                         pass
         
+        if errors:
+            return {
+                "success": False,
+                "error": "One or more operations failed during export",
+                "message": f"Export completed with errors to {database_name}",
+                "collections": created_collections,
+                "indexes": created_indexes,
+                "errors": errors,
+            }
+
         return {
             "success": True,
             "message": f"Successfully exported schema to {database_name}",
@@ -284,7 +310,8 @@ async def export_schema_to_atlas(
         return {
             "success": False,
             "error": f"Export failed: {str(e)}",
-            "created_collections": created_collections
+            "created_collections": created_collections,
+            "errors": errors,
         }
     finally:
         if client:
