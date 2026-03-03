@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
@@ -33,3 +33,18 @@ app.include_router(cost_estimation.router)
 @app.get("/")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.head("/")
+async def health_head():
+    return Response(status_code=200)
+
+
+@app.get("/health")
+async def health_check_explicit():
+    return {"status": "ok"}
+
+
+@app.head("/health")
+async def health_head_explicit():
+    return Response(status_code=200)
