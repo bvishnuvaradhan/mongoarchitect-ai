@@ -1,0 +1,28 @@
+name: Smoke Checks
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '*/30 * * * *'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Backend health check
+        env:
+          HEALTH_URL: ${{ secrets.RENDER_HEALTH_URL }}
+        run: |
+          if [ -z "$HEALTH_URL" ]; then
+            echo "RENDER_HEALTH_URL secret not set, failing.";
+            exit 1;
+          fi
+          echo "Checking backend health: $HEALTH_URL"
+          curl -fI "$HEALTH_URL"
+
+      - name: Frontend check
+        run: |
+          FRONTEND_URL="https://mongoarchitect-ai.vercel.app"
+          echo "Checking frontend: $FRONTEND_URL"
+          curl -fI "$FRONTEND_URL"
