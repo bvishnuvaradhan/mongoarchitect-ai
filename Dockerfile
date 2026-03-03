@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc git curl pkg-config libatlas-base-dev gfortran \
+    build-essential gcc git curl pkg-config libopenblas-dev liblapack-dev gfortran \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
